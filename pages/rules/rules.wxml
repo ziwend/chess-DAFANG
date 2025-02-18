@@ -1,0 +1,7 @@
+<view class="container">
+  <view class="rules-title">游戏规则</view>
+  <scroll-view scroll-y="true" class="rules-content">
+    <view wx:for="{{rules}}" wx:key="index" class="rule-item">{{item}}</view>
+  </scroll-view>
+  <button bindtap="goBack" class="back-button">返回游戏</button>
+</view>

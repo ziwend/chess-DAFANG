@@ -1,0 +1,28 @@
+.container {
+  padding: 20rpx;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.rules-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+.rules-content {
+  flex: 1;
+  border: 1rpx solid #cccccc;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+.rule-item {
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+.back-button {
+  width: 80%;
+  align-self: center;
+}
