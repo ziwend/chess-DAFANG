@@ -30,7 +30,6 @@ async function fetchAIDecisionWithRetry(phase, aicolor, data, setData, showMessa
             return decision; // 成功获取决策后返回
         } catch (error) {
             retryCount++;
-            
 
             // 如果是重复移动错误，保存最后一次决策
             if (error.message === 'AI 决策是重复移动') {
@@ -160,7 +159,7 @@ function getRandomDecision(validPositions, data, setData) {
             if (data.isDebug) {
                 console.log('随机决策已重复', randomIndex, JSON.stringify(validPositions));
             }
-            return getRandomDecision(validPositions, data, setData);            
+            return getRandomDecision(validPositions, data, setData);
         }
     }
 

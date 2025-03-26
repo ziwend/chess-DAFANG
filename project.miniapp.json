@@ -1,6 +1,6 @@
 {
   "miniVersion": "v2",
-  "name": "%name%",
+  "name": "big-square-chess",
   "version": "0.0.1",
   "versionCode": 100,
   "i18nFilePath": "i18n",
@@ -16,17 +16,17 @@
       "xweb": false
     },
     "icons": {
-      "hdpi": "",
-      "xhdpi": "",
-      "xxhdpi": "",
-      "xxxhdpi": ""
+      "hdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon2.jpg",
+      "xhdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon.jpg",
+      "xxhdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon.jpg",
+      "xxxhdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon.jpg"
     },
     "splashscreen": {
       "hdpi": "",
       "xhdpi": "",
       "xxhdpi": ""
     },
-    "enableVConsole": "open",
+    "enableVConsole": "close",
     "privacy": {
       "enable": true
     }

@@ -14,7 +14,7 @@ Page({
         players: PLAYERS,        // 玩家颜色
         message: INIT_MESG,        // 游戏状态提示           
         gameHistory: [],
-        isDebug: true,
+        isDebug: false,
         lastRandomDecision: null,  // 新增：存储上一次的随机决策
         isGameStarted: false,
         boardRectCache: null  // 新增：缓存棋盘边界矩形
@@ -117,17 +117,19 @@ Page({
     // 检查游戏是否结束 this.data[`${currentColor}Count`]
     checkGameOver: async function () {
         const currentColor = this.data.players[this.data.currentPlayer];
+        const opponentColor = currentColor === 'black' ? 'white' : 'black';
         const opponent = currentColor === 'black' ? '白方' : '黑方';
         const player = currentColor === 'black' ? '黑方' : '白方';
+        // 还要修改第二个condition，当获得了额外移动次数，是没有切换棋手的，还是当前方
         const conditions = [{
             check: () => this.data[`${currentColor}Count`] < NUMBERS.MIN_PIECES_TO_WIN,
             feedback: `当前棋手的棋子少于3颗，对方${opponent}获胜`,
             winner: `${opponent}`
         },
         {
-            check: () => this.data.extraMoves + NUMBERS.MIN_PIECES_TO_WIN > this.data[`${currentColor}Count`],
-            feedback: `当前棋手吃子后，对方${opponent}剩余棋子少于3颗，己方获胜`,
-            winner: `${player}`
+            check: () => this.data.extraMoves > 0 && this.data.extraMoves + NUMBERS.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
+            feedback: `对方吃子后，剩余棋子少于3颗，对方${opponent}获胜`,
+            winner: `${opponent}`
         },
         {
             check: () => this.data.gamePhase === GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
@@ -530,9 +532,6 @@ Page({
             }];
         }
 
-        if(this.data.isDebug) {
-            console.log("updateData.gameHistory", updateData.gameHistory);
-        }
         // 更新数据并设置闪动棋子
         this.setData(updateData);
     },
