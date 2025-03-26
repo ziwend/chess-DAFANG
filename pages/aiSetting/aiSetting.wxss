@@ -1,0 +1,53 @@
+.container {
+    padding: 20rpx;
+    height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-item {
+    margin-bottom: 30rpx;
+    width: 100% !important;
+}
+
+.form-item text {
+    display: block;
+    margin-bottom: 10rpx;
+    font-size: 28rpx;
+    color: #333;
+}
+/* 如果需要更具体的选择器，可以使用以下代码 */
+.form-item input {
+    width: 100% !important;
+    box-sizing: border-box;
+}
+input {
+    width: 100% !important;
+    height: 80rpx;
+    padding: 0 20rpx;
+    font-size: 28rpx;
+    border: 1rpx solid #ddd;
+    border-radius: 8rpx;
+    background-color: #fff;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input:focus {
+    border-color: #666;
+    outline: none;
+}
+
+button {
+    margin-top: 40rpx;
+    width: 100% !important;
+    height: 88rpx;
+    line-height: 88rpx;
+    font-size: 32rpx;
+    color: #fff;
+    background-color: #4CAF50;
+    border-radius: 8rpx;
+    border: none;
+} 

@@ -1,0 +1,48 @@
+<view class="container">
+  <view class="form-item">
+    <text>选择玩家类型:</text>
+    <radio-group bindchange="onPlayerTypeChange">
+      <label class="radio">
+        <radio value="self" checked="{{playerType === 'self'}}" /> 自己
+      </label>
+      <label class="radio">
+        <radio value="local" checked="{{playerType === 'local'}}" /> 本机
+      </label>
+      <label class="radio">
+        <radio value="ai" checked="{{playerType === 'ai'}}" /> AI
+      </label>
+    </radio-group>
+  </view>
+
+  <view wx:if="{{playerType === 'local'}}" class="form-item">
+    <text>选择难度:</text>
+    <radio-group bindchange="onDifficultyChange">
+      <label class="radio">
+        <radio value="easy" checked="{{difficulty === 'easy'}}" /> 容易
+      </label>
+      <label class="radio">
+        <radio value="medium" checked="{{difficulty === 'medium'}}" /> 中等
+      </label>
+      <label class="radio">
+        <radio value="hard" checked="{{difficulty === 'hard'}}" /> 困难
+      </label>
+    </radio-group>
+  </view>
+
+  <view wx:if="{{playerType === 'ai'}}">
+    <view class="form-item">
+      <text>API URL:</text>
+      <input placeholder="请输入API URL" value="{{aiConfig.url}}" bindinput="onUrlChange" type="text" confirm-type="done" adjust-position="true" />
+    </view>
+    <view class="form-item">
+      <text>Model:</text>
+      <input placeholder="请输入模型名称" value="{{aiConfig.model}}" bindinput="onModelChange" type="text" confirm-type="done" adjust-position="true" />
+    </view>
+    <view class="form-item">
+      <text>API Key:</text>
+      <input placeholder="请输入API Key" value="{{aiConfig.apiKey}}" bindinput="onApiKeyChange" type="text" confirm-type="done" adjust-position="true" />
+    </view>
+  </view>
+
+  <button bindtap="saveConfig">保存{{color === 'black' ? '黑方' : '白方'}}棋手设置</button>
+</view>

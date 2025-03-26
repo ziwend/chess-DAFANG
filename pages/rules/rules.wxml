@@ -1,0 +1,23 @@
+<view class="container">
+  <!-- 固定标题 -->
+  <view class="rules-title">游戏规则</view>
+  
+  <!-- 可滚动内容区域 -->
+  <scroll-view 
+    scroll-y="true" 
+    class="rules-content"
+    enhanced="true"
+    show-scrollbar="true"
+    bounces="true">
+    <view wx:for="{{rules}}" 
+          wx:key="index" 
+          class="rule-item">
+      {{item}}
+    </view>
+  </scroll-view>
+
+  <!-- 固定底部按钮 -->
+  <view class="back-button-container">
+    <button bindtap="goBack" class="back-button">返回游戏</button>
+  </view>
+</view>

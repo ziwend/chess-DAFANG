@@ -1,0 +1,81 @@
+<view class="container" bindtouchend="handleTouchEnd">
+  <view class="game-status">
+    <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
+    <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
+  </view>
+
+  <!-- 黑子棋盒 -->
+  <view class="player-box">
+    <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
+      <text>-></text>
+    </view>
+    <view class="piece-box black-box">
+      <view class="piece black"></view>
+      <text class="piece-count">x {{blackCount}}</text>
+    </view>
+    <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="black">设置黑方</button>
+  </view>
+  
+  <view class="board">
+    <!-- 横线 -->
+    <view class="horizontal-lines">
+      <view class="horizontal-line" wx:for="{{6}}" wx:key="index" 
+            style="top: {{index * (600/5)}}rpx;">
+      </view>
+    </view>
+    
+    <!-- 竖线 -->
+    <view class="vertical-lines">
+      <view class="vertical-line" wx:for="{{6}}" wx:key="index" 
+            style="left: {{index * (600/5)}}rpx;">
+      </view>
+    </view>
+    
+    <!-- 交叉点和棋子 -->
+    <view wx:for="{{board}}" 
+          wx:for-item="row" 
+          wx:for-index="rowIndex" 
+          wx:key="rowIndex">
+      <view wx:for="{{row}}" 
+            wx:for-item="cell" 
+            wx:for-index="colIndex" 
+            wx:key="colIndex">
+        <view class="intersection"
+              style="left: {{colIndex * (600/5)}}rpx; top: {{rowIndex * (600/5)}}rpx;"
+              data-row="{{rowIndex}}"
+              data-col="{{colIndex}}">
+          <view wx:if="{{cell}}"
+                class="piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}"
+                data-row="{{rowIndex}}"
+                data-col="{{colIndex}}"
+                data-color="{{cell.color}}"
+                bindtouchstart="handleDragStart"  bindanimationend="onAnimationEnd">
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 白子棋盒 -->
+  <view class="player-box">
+    <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
+      <text>-></text>
+    </view>
+    <view class="piece-box white-box">
+      <view class="piece white"></view>
+      <text class="piece-count">x {{whiteCount}}</text>
+    </view>
+    <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="white">设置白方</button>
+  </view>
+
+  <view class="controls">
+    <button wx:if="{{isGameStarted}}" class="control-button" bindtap="restartGame">重新开始</button>
+    <button wx:else class="control-button" bindtap="startGame">开始游戏</button>
+
+    <view class="timer" wx:if="{{isGameStarted}}">
+    <text>{{elapsedTime}}</text>
+    </view>
+
+    <button class="control-button" bindtap="goToRules">游戏规则</button>
+  </view>
+</view>
