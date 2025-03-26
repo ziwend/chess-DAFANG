@@ -530,6 +530,9 @@ Page({
             }];
         }
 
+        if(this.data.isDebug) {
+            console.log("updateData.gameHistory", updateData.gameHistory);
+        }
         // 更新数据并设置闪动棋子
         this.setData(updateData);
     },

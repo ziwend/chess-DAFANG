@@ -39,7 +39,9 @@ export function getValidPlacePositions(color, opponentColor, data) {
             action: 'placing',
             position: tempPosition
         });
-        console.log(`1、${color}棋子周围会组成阵型`);
+        if (data.isDebug) {
+            console.log(`1、${color}棋子周围会组成阵型`);
+        }        
         return finalPositions;
     }
 
@@ -49,7 +51,10 @@ export function getValidPlacePositions(color, opponentColor, data) {
             action: 'placing',
             position: tempOpponentPosition
         });
-        console.log(`2、${color}对手方会组成阵型`);
+        if (data.isDebug) {
+            console.log(`2、${color}对手方会组成阵型`);
+        }
+        
         return finalPositions;
     }
 
@@ -63,7 +68,9 @@ export function getValidPlacePositions(color, opponentColor, data) {
             // 过滤周边包含更多己方棋子的位置
             //possiblePositions = filterByNeighbors(possiblePositions, tempBoard);
         }
+        if (data.isDebug) {
         console.log(`3、${color}棋子周围放置2颗棋子会组成阵型`);
+        }
         return possiblePositions;
     }
     // 在此之前还要判断一下对方是否在垂直或水平方向上形成3子连珠，且只有对方的棋子
@@ -75,7 +82,9 @@ export function getValidPlacePositions(color, opponentColor, data) {
             // 过滤周边棋子最少的
             //possiblePositions = filterByNeighbors(possiblePositions, tempBoard);
         }
+        if (data.isDebug) {
         console.log(`4、${color}放在对方棋子周围，防止连续放置2颗棋子组成阵型`);
+        }
         return possiblePositions;
     }
 
@@ -107,11 +116,15 @@ export function getValidPlacePositions(color, opponentColor, data) {
             action: 'placing',
             position: tempPosition
         });
+        if (data.isDebug) {
         console.log(`5、${color}放置在现有棋子周围，权重最高的位置`, JSON.stringify(topScoredPositions));
+        }
         return finalPositions;
     }
 
+    if (data.isDebug) {
     console.log(`没有找到有效数据`, JSON.stringify(topScoredPositions));
+    }
     return finalPositions;
 }
 
@@ -211,17 +224,21 @@ export function getBestFormationPosition(row, col, tempBoard, color, opponentCol
                     const formationUpdate = checkFormation(row, col, color, tempBoard);
                     if (formationUpdate) {
                         // 判断一下extramoves，记录到tempPosition和tempExtraMoves中
-                        console.log('tempExtraMoves:', tempExtraMoves, 'formationUpdate.extraMoves:', formationUpdate.extraMoves);
+                        // console.log('tempExtraMoves:', tempExtraMoves, 'formationUpdate.extraMoves:', formationUpdate.extraMoves);
                         if (tempExtraMoves < formationUpdate.extraMoves) { // 如果有额外移动次数
                             tempExtraMoves = formationUpdate.extraMoves;
                             tempPosition = [row, col];
+                            if (data.isDebug) {
                             console.log(`己方${color}形成阵型的位置:`, JSON.stringify(tempPosition));
+                            }
                             return { tempPosition, tempOpponentPosition, tempExtraMoves, tempOpponentExtraMoves }; // 找到当前棋子形成的阵型，直接返回
                         } else if (tempExtraMoves === formationUpdate.extraMoves) {
                             const [oldRow, oldCol] = tempPosition;
                             if (WEIGHTS[row][col] > WEIGHTS[oldRow][oldCol]) {
                                 tempPosition = [row, col];
-                                console.log('getBestFormationPosition-new position', JSON.stringify(tempPosition));
+                                if (data.isDebug) {
+                                console.log('getBestFormationPosition-new position权重更大', JSON.stringify(tempPosition));
+                                }
                             }
                         }
                     }
@@ -241,13 +258,17 @@ export function getBestFormationPosition(row, col, tempBoard, color, opponentCol
                         if (tempOpponentExtraMoves < formationUpdate.extraMoves) { // 如果有额外移动次数
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [row, col];
+                            if (data.isDebug) {
                             console.log(`对方${opponentColor}形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            }
                             // 找到对方棋子形成的阵型，等一等
                         } else if (tempOpponentExtraMoves === formationUpdate.extraMoves) {
                             const [oldRow, oldCol] = tempOpponentPosition;
                             if (WEIGHTS[row][col] > WEIGHTS[oldRow][oldCol]) {
                                 tempOpponentPosition = [row, col];
-                                console.log('getBestFormationPosition-对方 new position', JSON.stringify(tempOpponentPosition));
+                                if (data.isDebug) {
+                                console.log('getBestFormationPosition-对方 new position权重更大', JSON.stringify(tempOpponentPosition));
+                                }
                             }
                         }
                     }
@@ -304,7 +325,7 @@ export function getPossibleFormationPositions(uniquePositions, tempBoard, color,
             // 判断一下这两个位置的权重，哪个大选哪个
             const [newRow, newCol] = position;
             const [oldRow, oldCol] = tempPosition;
-            console.log('getPossibleFormationPositions-new position', JSON.stringify(position), 'old position', JSON.stringify(tempPosition), 'WEIGHTS', WEIGHTS[newRow][newCol], WEIGHTS[oldRow][oldCol]);
+            // console.log('getPossibleFormationPositions-new position', JSON.stringify(position), 'old position', JSON.stringify(tempPosition), 'WEIGHTS', WEIGHTS[newRow][newCol], WEIGHTS[oldRow][oldCol]);
             if (WEIGHTS[newRow][newCol] > WEIGHTS[oldRow][oldCol]) {
                 tempPosition = position;
                 equalPositions = [position]; // 重置相等位置数组
@@ -332,13 +353,15 @@ export function getPossibleFormationPositions(uniquePositions, tempBoard, color,
                     equalPositions = [position]; // 重置相等位置数组
                 } else {
                     equalPositions.push(position); // 添加到相等位置数组
+                    if (data.isDebug) {
                     console.log('getPossibleFormationPositions-都相等，得考虑是否都返回', JSON.stringify(position), 'old position', JSON.stringify(tempPosition));
+                    }
                 }
             }
         }
         tempBoard[position[0]][position[1]] = null; // 恢复原来的棋盘
     });
-    console.log('getPossibleFormationPositions-countOfFormation', countOfFormation, 'tempPosition', JSON.stringify(tempPosition), 'equalPositions', JSON.stringify(equalPositions));
+    // console.log('getPossibleFormationPositions-countOfFormation', countOfFormation, 'tempPosition', JSON.stringify(tempPosition), 'equalPositions', JSON.stringify(equalPositions));
     let finalPositions = [];
     if (equalPositions.length > 1) {
         equalPositions.forEach(position => {
@@ -371,7 +394,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
     const diagonalOrDragonPieces = [];
     const formationPositions = [];
     const hasNonFormationPiecesFlag = hasNonFormationPieces(opponentColor, board);
-    const isFirstRemove = data.blackCount + data.whiteCount === WEIGHTS.MAX_PIECES_COUNT;
+    const isFirstRemove = isMaxPiecesCount(data);
     let hasNonSquarePiecesFlag = null;
 
     for (let row = 0; row < 6; row++) {
@@ -570,7 +593,7 @@ export function getValidMoves(playerColor, opponentColor, data) {
             let countAdjacent = 0;
             let countAdjacentOpponent = 0
             let possiblePosition = null;
-            let worstPositions = [];
+            let commonPositions = [];
             for (const dir of DIRECTIONS.ADJACENT) {
                 const newRow = row + dir.dx;
                 const newCol = col + dir.dy;
@@ -636,26 +659,35 @@ export function getValidMoves(playerColor, opponentColor, data) {
                 }
 
                 // 既不能己方形成阵型，也不能阻止对方形成阵型，备选
-                worstPositions.push([newRow, newCol]);
+                commonPositions.push([newRow, newCol]);
             }
 
             // 如果截止当前还没有找到自己可以形成阵型的移动，则判断移动是否会给对方机会
             let canNotMove = false;
             const destroyFormationUpdate = checkFormation(row, col, opponentColor, board);
             if (destroyFormationUpdate) {
-                if ((destroyFormationUpdate.formationType.includes('方') && countAdjacent > 2)) {
+                if ((destroyFormationUpdate.formationType.includes('方') && countAdjacentOpponent > 2)) {
                     canNotMove = true;
-                } else if (destroyFormationUpdate.formationType.includes('龙') && ((countAdjacent > 1 && isOnEdge(pos.row, pos.col)) || (countAdjacent > 2 && !isOnEdge(pos.row, pos.col)))) {
+                } else if (destroyFormationUpdate.formationType.includes('龙') && ((countAdjacentOpponent > 1 && isOnEdge(row, col)) || (countAdjacentOpponent > 2 && !isOnEdge(row, col)))) {
                     canNotMove = true;
-                } else if (destroyFormationUpdate.formationType.includes('斜') && countAdjacent > 0) {
+                } else if (destroyFormationUpdate.formationType.includes('斜') && countAdjacentOpponent > 0) {
                     canNotMove = true;
                 }
                 // TODO 这里还需要考虑的是如果移动对方会形成3斜，不移动对方就形成5斜，这时要不要移动去封堵对方形成更大的阵型？
                 if (canNotMove) {
-                    if (destroyFormationUpdate.extraMoves > tempOpponentExtraMoves) {
+                    if (destroyFormationUpdate.extraMoves > tempOpponentExtraMoves && commonPositions) {
+                        commonPositions.forEach(pos => {
+                            worstMoves.push({
+                                action: 'moving',
+                                position: [row, col],
+                                newPosition: pos
+                            });
+                        });
+
                         if (data.isDebug) {
-                            console.log(`${playerColor}-move后对方会形成阵型worstMoves: `, [row, col]);
+                            console.log(`${playerColor}-move后对方会形成阵型, worstMoves: `,JSON.stringify(worstMoves));
                         }
+
                         continue;
                     } else {
                         if (data.isDebug) {
@@ -673,7 +705,7 @@ export function getValidMoves(playerColor, opponentColor, data) {
             }
 
             if (!canNotMove) {
-                worstPositions.forEach(pos => {
+                commonPositions.forEach(pos => {
                     validMoves.push({
                         action: 'moving',
                         position: [row, col],

@@ -30,11 +30,13 @@ async function fetchAIDecisionWithRetry(phase, aicolor, data, setData, showMessa
             return decision; // 成功获取决策后返回
         } catch (error) {
             retryCount++;
-            console.error(`${aicolor}-AI决策失败，重试 ${retryCount}/${maxRetries} 次:`, error);
+            
 
             // 如果是重复移动错误，保存最后一次决策
             if (error.message === 'AI 决策是重复移动') {
                 lastDecision = error.decision; // 假设 error 中包含 decision
+            } else {
+                console.error(`${aicolor}-AI决策失败，重试 ${retryCount}/${maxRetries} 次:`, error);
             }
 
             // 重试 3 次后强制返回最后一次决策
