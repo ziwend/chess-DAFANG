@@ -15,7 +15,10 @@
     </view>
     <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="black">设置黑方</button>
   </view>
-  
+  <view class="board-container" >
+  <!-- 棋盘蒙版 -->
+  <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
+
   <view class="board">
     <!-- 横线 -->
     <view class="horizontal-lines">
@@ -55,7 +58,7 @@
       </view>
     </view>
   </view>
-
+  </view>
   <!-- 白子棋盒 -->
   <view class="player-box">
     <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
@@ -68,9 +71,11 @@
     <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="white">设置白方</button>
   </view>
 
+  <!-- 悬浮的开始按钮 -->
+  <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
+
   <view class="controls">
-    <button wx:if="{{isGameStarted}}" class="control-button" bindtap="restartGame">重新开始</button>
-    <button wx:else class="control-button" bindtap="startGame">开始游戏</button>
+    <button class="control-button" bindtap="openMenu">更多设置</button>
 
     <view class="timer" wx:if="{{isGameStarted}}">
     <text>{{elapsedTime}}</text>

@@ -57,7 +57,7 @@ export function checkSquare(row, col, currentColor, newBoard) {
             const newRow = row + dx;
             const newCol = col + dy;
             const position = {targetRow: newRow, targetCol: newCol}
-            if (!isInBoard(position) ||
+            if (!isInBoard(newRow, newCol) ||
                 !board[newRow][newCol] ||
                 board[newRow][newCol].color !== currentColor) {
                 isSquare = false;
@@ -105,8 +105,8 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
         let count = 1;
         let tempFormationPositions = [];
         // 向起点方向查找
-        let position = {targetRow: startRow - dx, targetCol: startCol - dy}
-        while (isInBoard(position) && board[startRow - dx][startCol - dy]?.color === currentColor) {
+
+        while (isInBoard(startRow - dx, startCol - dy) && board[startRow - dx][startCol - dy]?.color === currentColor) {
             count++;
             startRow -= dx;
             startCol -= dy;
@@ -114,12 +114,10 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
                 row: startRow,
                 col: startCol
             });
-            position = {targetRow: startRow - dx, targetCol: startCol - dy}
         }
 
         // 向终点方向查找
-        let newPosition = {targetRow: endRow + dx, targetCol: endCol + dy}
-        while (isInBoard(newPosition) && board[endRow + dx][endCol + dy]?.color === currentColor) {
+        while (isInBoard(endRow + dx, endCol + dy) && board[endRow + dx][endCol + dy]?.color === currentColor) {
             count++;
             endRow += dx;
             endCol += dy;
@@ -127,7 +125,6 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
                 row: endRow,
                 col: endCol
             });
-            newPosition = {targetRow: endRow + dx, targetCol: endCol + dy}
         }
 
         // 只有当起点和终点都在棋盘边线上时，才符合斜线规则
@@ -169,8 +166,8 @@ export function checkDragon(row, col, currentColor, newBoard) {
         let count = 1;
         let edgeCount = isOnEdge(row, col) ? 1 : 0; // 统计边线上的棋子数量
         let tempFormationPositions = [];
-        let position = {targetRow: r, targetCol: c};
-        while (isInBoard(position) && board[r][c]?.color === currentColor) {
+
+        while (isInBoard(r,c) && board[r][c]?.color === currentColor) {
             count++;
             if (isOnEdge(r, c)) edgeCount++;
             if (edgeCount === 3) {
@@ -182,15 +179,14 @@ export function checkDragon(row, col, currentColor, newBoard) {
             });
             r += dx;
             c += dy;
-            position = {targetRow: r, targetCol: c};
         }
 
         // 向相反方向检查
         r = row - dx;
         c = col - dy;
         
-        let newPosition = {targetRow: r, targetCol: c}
-        while (isInBoard(newPosition) && board[r][c]?.color === currentColor) {
+
+        while (isInBoard(r,c) && board[r][c]?.color === currentColor) {
             count++;
             if (isOnEdge(r, c)) edgeCount++;
             if (edgeCount === 3) {
@@ -202,7 +198,6 @@ export function checkDragon(row, col, currentColor, newBoard) {
             });
             r -= dx;
             c -= dy;
-            newPosition = {targetRow: r, targetCol: c}
         }
 
         // 检查是否形成6个连续棋子，并且不全部在边线上

@@ -1,5 +1,5 @@
 import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces } from './formationChecker.js';
-import { isInBoard } from './boardUtils.js';
+import { isInBoard,canPlace } from './boardUtils.js';
 import { GAME_PHASES } from './gameConstants.js';
 
 export function validatePosition(position, type, color, board) {
@@ -13,7 +13,7 @@ export function validatePosition(position, type, color, board) {
 }
 
 function isValidPlacement(targetPosition, board) {
-    return isInBoard(targetPosition) && !board[targetPosition.targetRow][targetPosition.targetCol];
+    return canPlace(targetPosition.targetRow, targetPosition.targetCol, board);
 }
 
 function isValidMovement(movePositions, board) {
@@ -54,27 +54,26 @@ function canRemovePiece(targetPosition, opponentColor, board) {
     return true;
 }
 
-export function isRepeatingMove(aicolor, startRow, startCol, targetRow, targetCol, data) {
+export function isRepeatingMove(aicolor, decision, data) {
     const historyKey = aicolor === 'black' ? 'blackLastMovedPiece' : 'whiteLastMovedPiece';
     const lastMove = data[historyKey];
     if (!lastMove) return false; // 第一次移动，不需要检测 
 
     // 检查是否与上一次移动相同
-    const isSameMove = lastMove.startRow === targetRow &&
-        lastMove.startCol === targetCol &&
-        lastMove.targetRow === startRow &&
-        lastMove.targetCol === startCol;
+    const isSameMove = lastMove.startRow === decision.newPosition[0] &&
+        lastMove.startCol === decision.newPosition[1] &&
+        lastMove.targetRow === decision.position[0] &&
+        lastMove.targetCol === decision.position[1];
 
     if (!isSameMove) return false;
 
     // 模拟移动
-    const tempBoard = JSON.parse(JSON.stringify(data.board));
-    tempBoard[startRow][startCol] = null;
-    tempBoard[targetRow][targetCol] = { color: aicolor, isFormation: false };
-
+    let tempBoard = JSON.parse(JSON.stringify(data.board));
+    tempBoard[decision.position[0]][decision.position[1]] = null;
+    tempBoard[decision.newPosition[0]][decision.newPosition[1]] = { color: aicolor, isFormation: false };
     // 检查是否形成阵型或获得额外吃子机会
-    const formationUpdate = checkFormation(targetRow, targetCol, aicolor, tempBoard);
-
+    const formationUpdate = checkFormation(decision.newPosition[0], decision.newPosition[1], aicolor, tempBoard);
+    tempBoard = null;
     // 如果移动对棋盘有积极影响，允许重复移动
     return !formationUpdate;
 }

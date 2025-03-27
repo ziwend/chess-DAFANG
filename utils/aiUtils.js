@@ -125,7 +125,7 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
         updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], 'AI 决策无效', data, setData);
     }
 
-    if (phase === 'moving' && validPositions.length > 1 && isRepeatingMove(aicolor, decision.position[0], decision.position[1], decision.newPosition[0], decision.newPosition[1], data)) {
+    if (phase === 'moving' && validPositions.length > 1 && isRepeatingMove(aicolor, decision, data)) {
         updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], 'AI 决策是重复移动', data, setData);
     }
 

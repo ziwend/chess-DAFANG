@@ -106,4 +106,4 @@ export const DEFAULT_PLAYER_CONFIG = {
     }
 };
 
-export const INIT_MESG = "点击'开始游戏'按钮，从黑方开始轮流布子";
+export const INIT_MESG = "点击中间按钮，从黑方开始轮流布子";

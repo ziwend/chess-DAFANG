@@ -14,9 +14,10 @@ Page({
         players: PLAYERS,        // 玩家颜色
         message: INIT_MESG,        // 游戏状态提示           
         gameHistory: [],
-        isDebug: false,
+        isDebug: true,
         lastRandomDecision: null,  // 新增：存储上一次的随机决策
         isGameStarted: false,
+        isGameOver: false,
         boardRectCache: null  // 新增：缓存棋盘边界矩形
     },
 
@@ -33,7 +34,37 @@ Page({
             url: `/pages/aiSetting/aiSetting?color=${color}`
         });
     },
-
+    openMenu: function () {
+        wx.showActionSheet({
+            itemList: ['选项1', '选项2', '选项3', '检查更新'], // 添加“检查更新”选项
+            success: function (res) {
+                console.log('用户选择了：', res.tapIndex);
+                // 根据选择的菜单项执行相应操作
+                if (res.tapIndex === 0) {
+                    wx.showToast({ title: '选项1被点击', icon: 'none' });
+                } else if (res.tapIndex === 1) {
+                    wx.showToast({ title: '选项2被点击', icon: 'none' });
+                } else if (res.tapIndex === 2) {
+                    wx.showToast({ title: '选项3被点击', icon: 'none' });
+                } else if (res.tapIndex === 3) {
+                    // 跳转到 GitHub Releases 页面
+                    wx.setClipboardData({
+                        data: 'https://github.com/ziwend/chess-DAFANG/releases',
+                        success: function () {
+                            wx.showModal({
+                                title: '链接已复制，请在浏览器中打开',
+                                showCancel: false,
+                                confirmText: 'OK'
+                            });
+                        }
+                    });
+                }
+            },
+            fail: function (res) {
+                console.log('用户取消了菜单');
+            }
+        });
+    },
     // 从配置页面返回会重新加载
     onShow: function () {
         const playerConfig = loadPlayerConfig();
@@ -111,7 +142,6 @@ Page({
     restartGame: function () {
         if (this.data.timer) clearInterval(this.data.timer);
         if (this.data.requestTask) this.data.requestTask.abort();
-
         this.startGame();
     },
     // 检查游戏是否结束 this.data[`${currentColor}Count`]
@@ -129,7 +159,7 @@ Page({
         {
             check: () => this.data.extraMoves > 0 && this.data.extraMoves + NUMBERS.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
             feedback: `对方吃子后，剩余棋子少于3颗，对方${opponent}获胜`,
-            winner: `${opponent}`
+            winner: `${player}`
         },
         {
             check: () => this.data.gamePhase === GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
@@ -205,6 +235,9 @@ Page({
             board: [],
             // ... 其他需要清理的状态
         });
+        if (this.data.isDebug) {
+            console.log('onUnload', JSON.stringify(this.data));
+        }
     },
 
     // -------------手动下棋控制逻辑开始--------------
@@ -347,9 +380,7 @@ Page({
         } else {
             const boardX = touch.clientX - this.data.boardRectCache.left;
             const boardY = touch.clientY - this.data.boardRectCache.top;
-            if (this.data.isDebug) {
-                console.log(`命中缓存，getBoardPosition:`, JSON.stringify(this.data.boardRectCache));
-            }
+
             return Promise.resolve({
                 boardX,
                 boardY,
