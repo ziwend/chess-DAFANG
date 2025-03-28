@@ -440,12 +440,12 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
             }
 
             if (isFirstRemove) {
-                const newExtraMoves = evaluateFormation(row,col , currentColor, opponentColor, board, tempExtraMoves);
+                const newExtraMoves = evaluateFormation(row, col , currentColor, opponentColor, board, tempExtraMoves);
                 if (newExtraMoves !== null && newExtraMoves > tempExtraMoves) {
                     tempPosition = [row, col];
                     tempExtraMoves = newExtraMoves;
                     if (data.isDebug) {
-                        console.log(`${currentColor}-棋盘满时，先考虑自己形成阵型:`, JSON.stringify(tempPosition), `吃子数：${newExtraMoves}`);
+                        console.log(`0-${currentColor}-棋盘满时，先考虑自己形成阵型:`, JSON.stringify(tempPosition), `吃子数：${newExtraMoves}`);
                     }
                     continue;
                 }
@@ -454,6 +454,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                 }
             }
 
+            // 再判断该棋子移动后，对方是否形成阵型
             for (const dir of DIRECTIONS.ADJACENT) {
                 const newRow = row + dir.dx;
                 const newCol = col + dir.dy;
@@ -463,6 +464,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                 if (board[newRow][newCol] !== null && !isFirstRemove) {
                     continue;
                 }
+
                 const formationUpdate = checkFormation(newRow, newCol, opponentColor, board);
                 if (!formationUpdate) {
                     continue;
@@ -481,10 +483,10 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                             if (pos.row === newRow && pos.col === newCol) continue;
                             // 移除之后自己能形成阵型
                             const thisPosExtraMoves = evaluateFormation(pos.row,pos.col, currentColor, opponentColor, board, tempExtraMoves);
-                            if (thisPosExtraMoves !== null && pos.row !== newRow && pos.col !== newCol) {
+                            if (thisPosExtraMoves !== null) {
                                 tempOpponentExtraMoves = formationUpdate.extraMoves;
                                 tempOpponentPosition = [pos.row, pos.col];
-                                console.log(`${currentColor}自己可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
+                                console.log(`2-${currentColor}自己可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
                                 break;
                             }
                             // 判断该棋子周围没有自己的棋子，使用AJACENT判断
@@ -495,21 +497,21 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                                     break;
                                 }
                             }
-                            if (!hasAjacent && pos.row !== newRow && pos.col !== newCol) {
+                            if (!hasAjacent) {
                                 tempOpponentExtraMoves = formationUpdate.extraMoves;
                                 tempOpponentPosition = [pos.row, pos.col];
-                                console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                                console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                                 break;
                             }
-                            // 再找最多斜的那个
+                            // 自己最多奖励的那个
                             if (largestMoves < thisPosExtraMoves && pos.row !== newRow && pos.col !== newCol) {
                                 largestMoves = thisPosExtraMoves;
                                 tempOpponentExtraMoves = formationUpdate.extraMoves;
                                 tempOpponentPosition = [pos.row, pos.col];
-                                onsole.log(`${currentColor}duifang可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
+                                onsole.log(`1-${currentColor}duifang可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
                                 continue;
                             } else if (largestMoves === formationUpdate.extraMoves) {
-                                console.log(`${currentColor}对方可能形成xie阵型的位置:`, JSON.stringify(pos),largestMoves);
+                                console.log(`1-${currentColor}对方可能形成xie阵型的位置:`, JSON.stringify(pos),largestMoves);
                             }
                         }
                         if (data.isDebug) {
@@ -521,20 +523,20 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                         if ((!isInBoard(newRow + 1, newCol) || board[newRow + 1][newCol] === null || board[newRow + 1][newCol].color === currentColor) && hasValidPiece(currentColor, newRow - 1, newCol, board)) {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [newRow - 1, newCol];
-                            console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                             break;
                         }
                         if ((!isInBoard(newRow - 1, newCol) || board[newRow - 1][newCol] === null || board[newRow - 1][newCol].color === currentColor) && hasValidPiece(currentColor, newRow + 1, newCol, board)) {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [newRow + 1, newCol];
-                            console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                             break;
                         }
                         // 再判断左右移动
                         if (hasValidPiece(opponentColor,newRow, col + 2 * dir.dy, board)) {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [newRow, col + 2 * dir.dy];
-                            console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                             break;
                         }
 
@@ -554,7 +556,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                             if (thisPosExtraMoves !== null) {
                                 tempOpponentExtraMoves = formationUpdate.extraMoves;
                                 tempOpponentPosition = [pos.row, pos.col];
-                                console.log(`${currentColor}自己可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
+                                console.log(`2-${currentColor}自己可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
                                 break;
                             }
                             // 判断该棋子周围没有自己的棋子，使用AJACENT判断
@@ -568,7 +570,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                             if (!hasAjacent ) {
                                 tempOpponentExtraMoves = formationUpdate.extraMoves;
                                 tempOpponentPosition = [pos.row, pos.col];
-                                console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                                console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                                 break;
                             }
                             // 再找最多斜的那个
@@ -576,13 +578,13 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                                 largestMoves = thisPosExtraMoves;
                                 tempOpponentExtraMoves = formationUpdate.extraMoves;
                                 tempOpponentPosition = [pos.row, pos.col];
-                                onsole.log(`${currentColor}duifang可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
+                                onsole.log(`1-${currentColor}duifang可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition),tempOpponentExtraMoves);
                                 continue;
                             } else if (largestMoves === formationUpdate.extraMoves) {
-                                console.log(`${currentColor}对方可能形成xie阵型的位置:`, JSON.stringify(pos),largestMoves);
+                                console.log(`1-${currentColor}对方可能形成xie阵型的位置:`, JSON.stringify(pos),largestMoves);
                             }
                             if (data.isDebug) {
-                                console.log(`${currentColor}对方可能形成xie阵型的位置:`, newRow, newCol);
+                                console.log(`1-${currentColor}对方可能形成xie阵型的位置:`, newRow, newCol);
                             }
                         }
                     }
@@ -591,20 +593,20 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                         if ((!isInBoard(newRow, newCol + 1) || board[newRow][newCol + 1] === null || board[newRow][newCol + 1].color === currentColor) && hasValidPiece(currentColor, newRow, newCol - 1, board)) {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [newRow, newCol - 1];
-                            console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                             break;
                         }
                         if ((!isInBoard(newRow, newCol - 1) || board[newRow][newCol - 1] === null || board[newRow][newCol - 1].color === currentColor) && hasValidPiece(currentColor, newRow, newCol + 1, board)) {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [newRow, newCol + 1];
-                            console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                             break;
                         }
                         // 再判断上下移动
                         if (hasValidPiece(opponentColor,row + 2 * dir.dx, newCol, board)) {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
                             tempOpponentPosition = [row + 2 * dir.dx, newCol];
-                            console.log(`${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                            console.log(`1-${currentColor}对方可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                             break;
                         }
                     }
@@ -617,7 +619,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                     tempOpponentPosition = [row, col];
                     break;
                 } else {
-                    console.log(`${currentColor}有多个对方可能形成阵型的位置:`, [row, col], JSON.stringify(tempOpponentPosition));
+                    console.log(`1-${currentColor}有多个对方可能形成阵型的位置:`, [row, col], JSON.stringify(tempOpponentPosition));
                 }
             }
 
@@ -628,7 +630,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
             // 如果对当前棋子检查之后获取了对方可能形成阵型的位置，则继续
             if (tempOpponentPosition) {
                 if (data.isDebug) {
-                    console.log(`${currentColor}duifang可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
+                    console.log(`1-${currentColor}duifang可能形成阵型的位置:`, JSON.stringify(tempOpponentPosition));
                 }
                 continue
             }
@@ -638,7 +640,7 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
                 tempPosition = [row, col];
                 tempExtraMoves = newExtraMoves;
                 if (data.isDebug) {
-                    console.log(`${currentColor}自己可能形成阵型的位置:,newExtraMoves`, JSON.stringify(tempPosition),tempExtraMoves);
+                    console.log(`3-${currentColor}自己可能形成阵型的位置:,newExtraMoves`, JSON.stringify(tempPosition),tempExtraMoves);
                 }
                 continue;
             }
@@ -649,8 +651,8 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
 
     const finalPositions = [];
     if (isFirstRemove && tempPosition) {
-        const [row2, col2] = tempPosition;
-        const squareResult = checkSquare(row2, col2, opponentColor, board);
+        console.log(`1-${currentColor}-isFirstRemove-可能形成阵型的位置:`, JSON.stringify(tempPosition));
+        const squareResult = checkSquare(tempPosition[0], tempPosition[1], opponentColor, board);
         if (squareResult.squareCount === 0) {
             finalPositions.push({
                 action: 'removing',
@@ -661,8 +663,8 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
     }
 
     if (tempOpponentPosition) {
-        const [row3, col3] = tempOpponentPosition;
-        const squareResult = checkSquare(row3, col3, opponentColor, board);
+        console.log(`1-${currentColor}-tempOpponentPosition-可能形成阵型的位置:`, JSON.stringify(tempPosition));
+        const squareResult = checkSquare(tempOpponentPosition[0], tempOpponentPosition[1], opponentColor, board);
         if (squareResult.squareCount === 0) {
             finalPositions.push({
                 action: 'removing',
@@ -673,8 +675,8 @@ export function getValidRemovePositions(currentColor, opponentColor, data) {
     }
 
     if (tempPosition) {
-        const [row2, col2] = tempPosition;
-        const squareResult = checkSquare(row2, col2, opponentColor, board);
+        console.log(`1-${currentColor}--可能形成阵型的位置:`, JSON.stringify(tempPosition));
+        const squareResult = checkSquare(tempPosition[0], tempPosition[1], opponentColor, board);
         if (squareResult.squareCount === 0) {
             finalPositions.push({
                 action: 'removing',
@@ -883,10 +885,10 @@ export function getValidMoves(playerColor, opponentColor, data) {
         return finalPositions;
     }
     if (validMoves.length > 0) {
-        debugLog(data.isDebug, '5、既不能自己形成阵型，也不能阻止对方形成阵型', validMoves);
+        debugLog(data.isDebug, `5、${playerColor}既不能自己形成阵型，也不能阻止对方形成阵型`, validMoves);
         return validMoves;
     }
-    debugLog(data.isDebug, '6、move后对方会形成阵型worstMoves:', worstMoves);
+    debugLog(data.isDebug, `6、${playerColor}move后对方会形成阵型worstMoves:`, worstMoves);
     return worstMoves;
 }
 
@@ -894,6 +896,7 @@ function evaluateFormation(row, col , currentColor, opponentColor, board, tempEx
     const formationUpdate = checkFormation(row, col, currentColor, board);
     if (formationUpdate) {
         const { countAdjacent, countAdjacentOpponent } = countAdjacentPieces(row, col, currentColor, opponentColor, board);
+        console.log(`${currentColor}countAdjacent:${countAdjacent},countAdjacentOpponent:${countAdjacentOpponent}`);
 
         if ((formationUpdate.formationType.includes('方') && countAdjacent > 2) ) {
             if (tempExtraMoves < formationUpdate.extraMoves) {

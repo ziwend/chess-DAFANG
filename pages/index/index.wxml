@@ -1,102 +1,91 @@
 <view class="container" bindtouchend="handleTouchEnd">
-  <view class="game-status">
-    <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
-    <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
-  </view>
+    <view class="game-status">
+        <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
+        <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
+    </view>
 
-  <!-- 黑子棋盒 -->
-  <view class="player-box">
-    <!-- 黑方悔棋按钮 -->
-  <button 
-    class="undo-button" 
-    wx:if="{{playerConfig.black.playerType === 'self'}}" 
-    bindtap="undoMove" 
-    data-color="black">
-    悔棋
-  </button>
-    <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
-      <text>-></text>
-    </view>
-    <view class="piece-box black-box">
-      <view class="piece black"></view>
-      <text class="piece-count">x {{blackCount}}</text>
-    </view>
-    <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="black">设置黑方</button>
-  </view>
-  <view class="board-container" >
-  <!-- 棋盘蒙版 -->
-  <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
+    <!-- 黑子棋盒 -->
+    <view class="player-box">
+        <!-- 黑方悔棋按钮 -->
+        <button class="undo-button" wx:if="{{playerConfig.black.playerType === 'self'}}" bindtap="undoMove" data-color="black">
+            悔    棋
+        </button>
+        <!-- 黑方难易程度 -->
+        <button class="undo-button" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black">
+            {{playerConfig.black.difficulty === 'easy' ? '容    易' : (playerConfig.black.difficulty === 'medium' ? '中等难度' : '困    难')}}
+        </button>
 
-  <view class="board">
-    <!-- 横线 -->
-    <view class="horizontal-lines">
-      <view class="horizontal-line" wx:for="{{6}}" wx:key="index" 
-            style="top: {{index * (600/5)}}rpx;">
-      </view>
-    </view>
-    
-    <!-- 竖线 -->
-    <view class="vertical-lines">
-      <view class="vertical-line" wx:for="{{6}}" wx:key="index" 
-            style="left: {{index * (600/5)}}rpx;">
-      </view>
-    </view>
-    
-    <!-- 交叉点和棋子 -->
-    <view wx:for="{{board}}" 
-          wx:for-item="row" 
-          wx:for-index="rowIndex" 
-          wx:key="rowIndex">
-      <view wx:for="{{row}}" 
-            wx:for-item="cell" 
-            wx:for-index="colIndex" 
-            wx:key="colIndex">
-        <view class="intersection"
-              style="left: {{colIndex * (600/5)}}rpx; top: {{rowIndex * (600/5)}}rpx;"
-              data-row="{{rowIndex}}"
-              data-col="{{colIndex}}">
-          <view wx:if="{{cell}}"
-                class="piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}"
-                data-row="{{rowIndex}}"
-                data-col="{{colIndex}}"
-                data-color="{{cell.color}}"
-                bindtouchstart="handleDragStart"  bindanimationend="onAnimationEnd">
-          </view>
+        <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
+            <text>-></text>
         </view>
-      </view>
+        <view class="piece-box black-box">
+            <view class="piece black"></view>
+            <text class="piece-count">x {{blackCount}}</text>
+        </view>
+        <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="black">设置黑方</button>
     </view>
-  </view>
-  </view>
-  <!-- 白子棋盒 -->
-  <view class="player-box">
-      <!-- 白方悔棋按钮 -->
-  <button 
-    class="undo-button" 
-    wx:if="{{playerConfig.white.playerType === 'self'}}" 
-    bindtap="undoMove" 
-    data-color="white">
-    悔棋
-  </button>
-    <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
-      <text>-></text>
+    <view class="board-container">
+        <!-- 棋盘蒙版 -->
+        <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
+
+        <view class="board">
+            <!-- 横线 -->
+            <view class="horizontal-lines">
+                <view class="horizontal-line" wx:for="{{6}}" wx:key="index" style="top: {{index * (600/5)}}rpx;">
+                </view>
+            </view>
+
+            <!-- 竖线 -->
+            <view class="vertical-lines">
+                <view class="vertical-line" wx:for="{{6}}" wx:key="index" style="left: {{index * (600/5)}}rpx;">
+                </view>
+            </view>
+
+            <!-- 交叉点和棋子 -->
+            <view wx:for="{{board}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="rowIndex">
+                <view wx:for="{{row}}" wx:for-item="cell" wx:for-index="colIndex" wx:key="colIndex">
+                    <view class="intersection" style="left: {{colIndex * (600/5)}}rpx; top: {{rowIndex * (600/5)}}rpx;" data-row="{{rowIndex}}" data-col="{{colIndex}}">
+                        <view wx:if="{{cell}}" class="piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}" data-row="{{rowIndex}}" data-col="{{colIndex}}" data-color="{{cell.color}}" bindtouchstart="handleDragStart" bindanimationend="onAnimationEnd">
+                        </view>
+                    </view>
+                </view>
+            </view>
+        </view>
     </view>
-    <view class="piece-box white-box">
-      <view class="piece white"></view>
-      <text class="piece-count">x {{whiteCount}}</text>
+    <!-- 白子棋盒 -->
+    <view class="player-box">
+        <!-- 白方悔棋按钮 -->
+        <button class="undo-button" wx:if="{{playerConfig.white.playerType === 'self'}}" bindtap="undoMove" data-color="white">
+            悔棋
+        </button>
+        <!-- 白方难易程度 -->
+        <button class="undo-button" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white">
+            {{playerConfig.white.difficulty === 'easy' ? '容    易' : (playerConfig.white.difficulty === 'medium' ? '中等难度' : '困    难')}}
+        </button>
+        <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
+            <text>-></text>
+        </view>
+        <view class="piece-box white-box">
+            <view class="piece white"></view>
+            <text class="piece-count">x {{whiteCount}}</text>
+        </view>
+        <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="white">设置白方</button>
     </view>
-    <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="white">设置白方</button>
-  </view>
 
-  <!-- 悬浮的开始按钮 -->
-  <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
+    <!-- 悬浮的开始按钮 -->
+    <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
 
-  <view class="controls">
-    <button class="control-button" bindtap="openMenu">更多设置</button>
+    <view class="controls">
+        <!-- 游戏未开始时显示“更多设置”按钮 -->
+        <button class="control-button" bindtap="openMenu" wx:if="{{!isGameStarted}}">更多设置</button>
 
-    <view class="timer" wx:if="{{isGameStarted}}">
-    <text>{{elapsedTime}}</text>
+        <!-- 游戏开始后显示“重新开始”按钮 -->
+        <button class="control-button" bindtap="restartGame" wx:if="{{isGameStarted}}">重新开始</button>
+
+        <view class="timer" wx:if="{{isGameStarted}}">
+            <text>{{elapsedTime}}</text>
+        </view>
+
+        <button class="control-button" bindtap="goToRules">游戏规则</button>
     </view>
-
-    <button class="control-button" bindtap="goToRules">游戏规则</button>
-  </view>
 </view>

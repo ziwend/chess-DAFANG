@@ -837,10 +837,92 @@ Page({
     undoMove: function (e) {
         const color = e.currentTarget.dataset.color; // 获取悔棋的玩家颜色
         console.log(`${color}方请求悔棋`);
-        // 在这里实现悔棋逻辑，例如撤销上一步操作
+    
+        // 检查是否有历史记录可以撤销
+        if (!this.data.gameHistory || this.data.gameHistory.length < 2) {
+            wx.showToast({
+                title: '没有足够的操作可以撤销',
+                icon: 'none'
+            });
+            return;
+        }
+    
+        // 找到最后两条 role: "assistant" 的记录
+        const assistantActions = this.data.gameHistory.filter(record => record.role === "assistant");
+        if (assistantActions.length < 2) {
+            wx.showToast({
+                title: '没有足够的操作可以撤销',
+                icon: 'none'
+            });
+            return;
+        }
+    
+        // 获取最后两条记录
+        const lastAction = JSON.parse(assistantActions[assistantActions.length - 1].content);
+        const secondLastAction = JSON.parse(assistantActions[assistantActions.length - 2].content);
+    
+        // 恢复棋盘状态
+        let newBoard = JSON.parse(JSON.stringify(this.data.board));
+        let updateData = {};
+    
+        // 撤销最后一条操作
+        this.revertAction(lastAction, newBoard, updateData);
+    
+        // 撤销倒数第二条操作
+        this.revertAction(secondLastAction, newBoard, updateData);
+    
+        // 更新数据
+        updateData.board = newBoard;
+        updateData.gameHistory = this.data.gameHistory.filter((record, index) => {
+            return index < this.data.gameHistory.length - 2 || record.role !== "assistant";
+        }); // 移除最后两条 role: "assistant" 的记录
+        updateData.message = `${color === 'black' ? '黑方' : '白方'}悔棋成功`;
+    
+        this.setData(updateData);
+    
         wx.showToast({
-            title: `${color === 'black' ? '黑方' : '白方'}悔棋`,
+            title: `${color === 'black' ? '黑方' : '白方'}悔棋成功`,
             icon: 'none'
         });
+    },
+    
+    // 辅助方法：撤销单条操作
+    revertAction: function (action, board, updateData) {
+        const { action: actionType, position, newPosition, removedPiece } = action;
+    
+        if (actionType === GAME_PHASES.PLACING) {
+            // 撤销放置操作
+            const [row, col] = position;
+            board[row][col] = null; // 移除最近放置的棋子
+            const color = removedPiece ? removedPiece.color : null;
+            if (color) {
+                updateData[`${color}Count`] = (updateData[`${color}Count`] || this.data[`${color}Count`]) - 1; // 减少棋子计数
+            }
+        } else if (actionType === GAME_PHASES.MOVING) {
+            // 撤销移动操作
+            const [startRow, startCol] = position;
+            const [targetRow, targetCol] = newPosition;
+            board[startRow][startCol] = board[targetRow][targetCol]; // 将棋子移回起始位置
+            board[targetRow][targetCol] = null; // 清空目标位置
+        } else if (actionType === GAME_PHASES.REMOVING) {
+            // 撤销移除操作
+            const [row, col] = position;
+            board[row][col] = removedPiece; // 恢复被移除的棋子
+            const color = removedPiece.color;
+            updateData[`${color}Count`] = (updateData[`${color}Count`] || this.data[`${color}Count`]) + 1; // 增加被移除棋子的计数
+        }
+    
+        // 取消阵型状态
+        if (action.formationPositions) {
+            action.formationPositions.forEach(pos => {
+                const { row, col } = pos;
+                if (board[row] && board[row][col]) {
+                    board[row][col].isFormation = false; // 取消阵型状态
+                }
+            });
+        }
+    
+        // 撤销额外落子或吃子机会
+        updateData.extraMoves = (updateData.extraMoves || this.data.extraMoves) - (action.extraMoves || 0);
     },
 });
