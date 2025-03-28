@@ -1,8 +1,8 @@
 // 导入游戏常量
-import { PLAYERS, GAMEHISTORY, NUMBERS, INITIAL_BOARD, GAME_PHASES,INIT_MESG } from '../../utils/gameConstants.js';
+import { PLAYERS, GAMEHISTORY, NUMBERS, INITIAL_BOARD, GAME_PHASES, INIT_MESG } from '../../utils/gameConstants.js';
 // 导入 棋手配置管理函数
 import { loadPlayerConfig } from '../../utils/playerConfigManager.js';
-import { isStillInFormation, checkFormation} from '../../utils/formationChecker.js';
+import { isStillInFormation, checkFormation } from '../../utils/formationChecker.js';
 import { saveUserMessageToHistory, saveAssistantMessageToHistory, exportGameHistory } from '../../utils/historyUtils.js';
 import { hasValidMoves, updateBoard, isMaxPiecesCount, isBoardWillFull } from '../../utils/boardUtils.js';
 import { handleAITurn } from '../../utils/aiUtils.js';
@@ -36,17 +36,11 @@ Page({
     },
     openMenu: function () {
         wx.showActionSheet({
-            itemList: ['选项1', '选项2', '选项3', '检查更新'], // 添加“检查更新”选项
+            itemList: ['检查更新'], // 添加“检查更新”选项
             success: function (res) {
                 console.log('用户选择了：', res.tapIndex);
                 // 根据选择的菜单项执行相应操作
                 if (res.tapIndex === 0) {
-                    wx.showToast({ title: '选项1被点击', icon: 'none' });
-                } else if (res.tapIndex === 1) {
-                    wx.showToast({ title: '选项2被点击', icon: 'none' });
-                } else if (res.tapIndex === 2) {
-                    wx.showToast({ title: '选项3被点击', icon: 'none' });
-                } else if (res.tapIndex === 3) {
                     // 跳转到 GitHub Releases 页面
                     wx.setClipboardData({
                         data: 'https://github.com/ziwend/chess-DAFANG/releases',
@@ -838,5 +832,15 @@ Page({
             .catch(err => {
                 console.error("导出游戏历史失败:", err);
             });
+    },
+    // 悔棋逻辑
+    undoMove: function (e) {
+        const color = e.currentTarget.dataset.color; // 获取悔棋的玩家颜色
+        console.log(`${color}方请求悔棋`);
+        // 在这里实现悔棋逻辑，例如撤销上一步操作
+        wx.showToast({
+            title: `${color === 'black' ? '黑方' : '白方'}悔棋`,
+            icon: 'none'
+        });
     },
 });
