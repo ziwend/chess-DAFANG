@@ -880,16 +880,6 @@ Page({
         // 恢复当前玩家
         updateData.currentPlayer = 1 - this.data.currentPlayer;
     
-        // 恢复游戏阶段
-        if (this.data.extraMoves > 0) {
-            updateData.gamePhase = GAME_PHASES.REMOVING;
-        } else {
-            updateData.gamePhase = GAME_PHASES.MOVING;
-        }
-    
-        // 恢复提示信息
-        updateData.message = `${color === 'black' ? '黑方' : '白方'}悔棋成功`;
-    
         // 恢复额外落子或吃子机会
         updateData.extraMoves = Math.max(0, this.data.extraMoves - (lastAction.extraMoves || 0) - (secondLastAction.extraMoves || 0));
     
