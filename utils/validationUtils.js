@@ -1,5 +1,5 @@
 import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces } from './formationChecker.js';
-import { isInBoard,canPlace } from './boardUtils.js';
+import { deepCopy,canPlace } from './boardUtils.js';
 import { GAME_PHASES } from './gameConstants.js';
 
 export function validatePosition(position, type, color, board) {
@@ -68,7 +68,7 @@ export function isRepeatingMove(aicolor, decision, data) {
     if (!isSameMove) return false;
 
     // 模拟移动
-    let tempBoard = JSON.parse(JSON.stringify(data.board));
+    let tempBoard = deepCopy(data.board);
     tempBoard[decision.position[0]][decision.position[1]] = null;
     tempBoard[decision.newPosition[0]][decision.newPosition[1]] = { color: aicolor, isFormation: false };
     // 检查是否形成阵型或获得额外吃子机会

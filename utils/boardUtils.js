@@ -20,9 +20,9 @@ export function canMove(row, col, board) {
     }
     return false; // 所有方向都被占据，无法移动
 }
-export function hasValidPiece(currentColor, row, col, board) {
-    if (isInBoard(row, col) && board[row][col] && board[row][col].color === currentColor) {
-        return true;
+export function hasValidPiece(row, col, board) {
+    if (isInBoard(row, col) && board[row][col]) {
+        return board[row][col].color;
     }
 }
 // 当前位置存在棋子且可以移动
@@ -59,6 +59,16 @@ export function isMaxPiecesCount (data) {
 }
 
 // 新增：检查棋盘是否已满
-export function isBoardWillFull (data) {
-    return data.blackCount + data.whiteCount + 1 === NUMBERS.MAX_PIECES_COUNT;
+export function isBoardWillFull (blackCount, whiteCount) {
+    return blackCount + whiteCount + 1 === NUMBERS.MAX_PIECES_COUNT;
 }
+
+// 创建一个专用的深拷贝函数
+export function deepCopy(obj) {
+    if (obj === null || typeof obj !== 'object') return obj;
+    const copy = Array.isArray(obj) ? [] : {};
+    for (const key in obj) {
+      copy[key] = deepCopy(obj[key]);
+    }
+    return copy;
+  }

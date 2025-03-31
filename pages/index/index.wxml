@@ -8,11 +8,11 @@
     <view class="player-box">
         <!-- 黑方悔棋按钮 -->
         <button class="undo-button" wx:if="{{playerConfig.black.playerType === 'self'}}" bindtap="undoMove" data-color="black">
-            悔    棋
+            悔　　棋
         </button>
         <!-- 黑方难易程度 -->
         <button class="undo-button" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black">
-            {{playerConfig.black.difficulty === 'easy' ? '容    易' : (playerConfig.black.difficulty === 'medium' ? '中等难度' : '困    难')}}
+            {{playerConfig.black.difficulty === 'easy' ? '容　　易' : (playerConfig.black.difficulty === 'medium' ? '中等难度' : '困　　难')}}
         </button>
 
         <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
@@ -56,11 +56,11 @@
     <view class="player-box">
         <!-- 白方悔棋按钮 -->
         <button class="undo-button" wx:if="{{playerConfig.white.playerType === 'self'}}" bindtap="undoMove" data-color="white">
-            悔棋
+            悔　　棋
         </button>
         <!-- 白方难易程度 -->
         <button class="undo-button" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white">
-            {{playerConfig.white.difficulty === 'easy' ? '容    易' : (playerConfig.white.difficulty === 'medium' ? '中等难度' : '困    难')}}
+            {{playerConfig.white.difficulty === 'easy' ? '容　　易' : (playerConfig.white.difficulty === 'medium' ? '中等难度' : '困　　难')}}
         </button>
         <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
             <text>-></text>

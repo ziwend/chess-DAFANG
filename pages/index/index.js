@@ -7,6 +7,7 @@ import { saveUserMessageToHistory, saveAssistantMessageToHistory, exportGameHist
 import { hasValidMoves, updateBoard, isMaxPiecesCount, isBoardWillFull } from '../../utils/boardUtils.js';
 import { handleAITurn } from '../../utils/aiUtils.js';
 import { validatePosition } from '../../utils/validationUtils.js';
+import { deepCopy } from '../../utils/boardUtils.js';
 
 // 游戏主页面逻辑
 Page({
@@ -73,7 +74,7 @@ Page({
 
     startGame: function () {
         const updateData = {
-            board: JSON.parse(JSON.stringify(INITIAL_BOARD)),
+            board: deepCopy(INITIAL_BOARD),
             currentPlayer: 0,            // 重置当前玩家为黑方
             dragPiece: null,            // 当前拖动的棋子信息
             blackCount: 0,            // 重置黑方棋子数量
@@ -458,7 +459,7 @@ Page({
 
     // 新增：检查棋盘是否已满
     isBoardWillFull: function () {
-        return isBoardWillFull(this.data);
+        return isBoardWillFull(this.data.blackCount, this.data.whiteCount);
     },
 
     // 抽取：处理移动操作
@@ -862,7 +863,7 @@ Page({
         const secondLastAction = JSON.parse(assistantActions[assistantActions.length - 2].content);
     
         // 恢复棋盘状态
-        let newBoard = JSON.parse(JSON.stringify(this.data.board));
+        let newBoard = deepCopy(this.data.board);
         let updateData = {};
     
         // 撤销最后一条操作
