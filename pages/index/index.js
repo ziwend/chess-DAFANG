@@ -3,7 +3,7 @@ import { PLAYERS, GAMEHISTORY, NUMBERS, INITIAL_BOARD, GAME_PHASES, INIT_MESG } 
 // 导入 棋手配置管理函数
 import { loadPlayerConfig } from '../../utils/playerConfigManager.js';
 import { isStillInFormation, checkFormation } from '../../utils/formationChecker.js';
-import { saveUserMessageToHistory, saveAssistantMessageToHistory, exportGameHistory } from '../../utils/historyUtils.js';
+import { saveUserMessageToHistory, saveAssistantMessageToHistory, exportGameHistory, debugLog } from '../../utils/historyUtils.js';
 import { hasValidMoves, updateBoard, isMaxPiecesCount, isBoardWillFull } from '../../utils/boardUtils.js';
 import { handleAITurn } from '../../utils/aiUtils.js';
 import { validatePosition } from '../../utils/validationUtils.js';
@@ -37,11 +37,14 @@ Page({
     },
     openMenu: function () {
         wx.showActionSheet({
-            itemList: ['检查更新'], // 添加“检查更新”选项
-            success: function (res) {
-                console.log('用户选择了：', res.tapIndex);
+            itemList: ['我的战绩', '检查github更新', '检查gitee更新'], // 添加“检查更新”选项
+            success: res =>  {
                 // 根据选择的菜单项执行相应操作
                 if (res.tapIndex === 0) {
+                    // 获取所有战绩
+                    const statistics = this.getAllGameResults();
+                    this.showStatistics(statistics);
+                } else if (res.tapIndex === 1) {
                     // 跳转到 GitHub Releases 页面
                     wx.setClipboardData({
                         data: 'https://github.com/ziwend/chess-DAFANG/releases',
@@ -53,11 +56,133 @@ Page({
                             });
                         }
                     });
+                } else if (res.tapIndex === 2) {
+                    // 跳转到 Gitee Releases 页面
+                    wx.setClipboardData({
+                        data: 'https://gitee.com/ziwend/chess-DAFANG/releases/',
+                        success: function () {
+                            wx.showModal({
+                                title: '链接已复制，请在浏览器中打开',
+                                showCancel: false,
+                                confirmText: 'OK'
+                            });
+                        }
+                    });
                 }
             },
-            fail: function (res) {
-                console.log('用户取消了菜单');
+            fail: res => {
+                debugLog(this.data.isDebug, '用户取消了菜单', res);
             }
+        });
+    },
+    getAllGameResults: function () {
+        const colors = ['black', 'white'];
+        const statistics = {
+            local: {},  // 本地对战成绩
+            ai: {}      // AI对战成绩
+        };
+    
+        try {
+            // 遍历所有可能的配置
+            colors.forEach(color => {
+                statistics.local[color] = {};
+                statistics.ai[color] = {};
+                
+                // 获取所有存储的键
+                const keys = wx.getStorageInfoSync().keys;
+                
+                // 过滤出与当前颜色相关的记录
+                const colorKeys = keys.filter(key => key.startsWith(`gameResults_${color}_`));
+                
+                colorKeys.forEach(key => {
+                    const results = wx.getStorageSync(key) || { win: 0, loss: 0 };
+                    const [_, __, opponent] = key.split('_'); // gameResults_black_easy
+                    
+                    // 根据对手类型分类
+                    if (['easy', 'medium', 'hard'].includes(opponent)) {
+                        statistics.local[color][opponent] = results;
+                    } else {
+                        statistics.ai[color][opponent] = results;
+                    }
+                });
+            });
+    
+            return statistics;
+        } catch (error) {
+            console.error('获取战绩失败:', error);
+            wx.showToast({
+                title: '获取战绩失败',
+                icon: 'none'
+            });
+            return {
+                local: { black: {}, white: {} },
+                ai: { black: {}, white: {} }
+            };
+        }
+    },
+    
+    showStatistics: function (statistics) {
+        let message = '';
+        const colors = ['black', 'white'];
+        const difficulties = ['easy', 'medium', 'hard'];
+        
+        // 对战本地玩家战绩
+        message += '=== 对战本机战绩 ===\n\n';
+        colors.forEach(color => {
+            const hasLocalGames = difficulties.some(diff => 
+                statistics.local[color][diff] && 
+                (statistics.local[color][diff].win > 0 || statistics.local[color][diff].loss > 0)
+            );
+            
+            if (hasLocalGames) {
+                message += `${color === 'black' ? '执黑方先手' : '执白方后手'}:\n`;
+                difficulties.forEach(difficulty => {
+                    const results = statistics.local[color][difficulty];
+                    if (results && (results.win > 0 || results.loss > 0)) {
+                        const difficultyText = {
+                            'easy': '简单',
+                            'medium': '中等',
+                            'hard': '困难'
+                        }[difficulty];
+                        message += `${difficultyText}难度: 胜${results.win}场 负${results.loss}场\n`;
+                    }
+                });
+                message += '\n';
+            }
+        });
+    
+        // 对战AI战绩
+        const hasAiGames = colors.some(color => 
+            Object.keys(statistics.ai[color]).length > 0
+        );
+        
+        if (hasAiGames) {
+            message += '=== 对战AI战绩 ===\n\n';
+            colors.forEach(color => {
+                const aiModels = Object.keys(statistics.ai[color]);
+                if (aiModels.length > 0) {
+                    message += `${color === 'black' ? '执黑方先手' : '执白方后手'}:\n`;
+                    aiModels.forEach(model => {
+                        const results = statistics.ai[color][model];
+                        if (results && (results.win > 0 || results.loss > 0)) {
+                            message += `${model}: 胜${results.win}场 负${results.loss}场\n`;
+                        }
+                    });
+                    message += '\n';
+                }
+            });
+        }
+    
+        if (message === '') {
+            message = '暂无对战记录';
+        }
+    
+        // 使用模态框展示战绩
+        wx.showModal({
+            title: '我的战绩',
+            content: message,
+            showCancel: false,
+            confirmText: '确定'
         });
     },
     // 从配置页面返回会重新加载
@@ -149,20 +274,26 @@ Page({
         const conditions = [{
             check: () => this.data[`${currentColor}Count`] < NUMBERS.MIN_PIECES_TO_WIN,
             feedback: `当前棋手的棋子少于3颗，对方${opponent}获胜`,
+            winnerColor: opponentColor,
+            losserColor: currentColor,
             winner: `${opponent}`
         },
         {
             check: () => this.data.extraMoves > 0 && this.data.extraMoves + NUMBERS.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
-            feedback: `对方吃子后，剩余棋子少于3颗，对方${opponent}获胜`,
+            feedback: `当前棋手吃子后，对方剩余棋子少于3颗，己方${player}获胜`,
+            winnerColor: currentColor,
+            losserColor: opponentColor,
             winner: `${player}`
         },
         {
             check: () => this.data.gamePhase === GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
             feedback: `当前棋手无棋子可以移动，对方${opponent}获胜`,
+            winnerColor: opponentColor,
+            losserColor: currentColor,
             winner: `${opponent}`
         }];
 
-        for (const { check, winner, feedback } of conditions) {
+        for (const { check, winner, winnerColor, losserColor, feedback } of conditions) {
             if (check()) {
                 this.setData({
                     isGameOver: true,
@@ -179,31 +310,80 @@ Page({
                     ]
                 });
 
-                if (this.data.isDebug) {
-                    console.log(`游戏结束，获胜方: ${winner} ，因为: ${feedback}`);
-                    // 等待导出完成
-                    await this.exportGameHistory();
+                let key = null;
+                let message = null;
+                if (this.data.playerConfig[winnerColor].playerType === 'self') {
+                    // 记录胜利信息
+                    // 根据对方类型生成key，如果是本机，使用difficulty，如果是ai则为aiConfig.model
+
+                    if (this.data.playerConfig[losserColor].playerType === 'local') {
+                        key = `gameResults_${winnerColor}_${this.data.playerConfig[losserColor].difficulty}`;
+                    } else if (this.data.playerConfig[losserColor].playerType === 'ai') {
+                        key = `gameResults_${winnerColor}_${this.data.playerConfig[losserColor].aiConfig.model}`;
+                    }
+
+                    this.recordGameResult(key, 'win');
+                    const totalWins = this.getGameResultCount(key, 'win');
+                    message = `恭喜您获胜啦！您已经打败对手${totalWins}次了，继续加油！`;
+                } else if (this.data.playerConfig[losserColor].playerType === 'self') {
+                    // 记录失败信息
+                    if (this.data.playerConfig[winnerColor].playerType === 'local') {
+                        key = `gameResults_${losserColor}_${this.data.playerConfig[winnerColor].difficulty}`;
+                    } else if (this.data.playerConfig[winnerColor].playerType === 'ai') {
+                        key = `gameResults_${losserColor}_${this.data.playerConfig[winnerColor].aiConfig.model}`;
+                    }
+                    this.recordGameResult(key, 'loss');
+                    const totalWins = this.getGameResultCount(key, 'win');
+                    if (totalWins > 0) {
+                        message = `哦噢，您被打败了！没关系，您已经打败对手${totalWins}次了，再来一场对决试试？`;
+                    } else {
+                        message = `哦噢，您被打败了！再来一场对决试试？`;
+                    }
+                }
+                if (message === null) {
+                    message = `游戏结束，获胜方: ${winner}`;
                 }
 
+                debugLog(this.data.isDebug, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
+
+                // 等待导出完成
+                await this.exportGameHistory();
+                this.showGameOver(message);
                 return winner; // 游戏结束，返回winner             
             }
         }
 
         return null; // 游戏未结束
     },
+    recordGameResult: function (key, result) {
+        const results = wx.getStorageSync(key) || { win: 0, loss: 0 };
+
+        if (result === 'win') {
+            results.win += 1;
+        } else if (result === 'loss') {
+            results.loss += 1;
+        }
+
+        wx.setStorageSync(key, results);
+    },
+
+    getGameResultCount: function (key, result) {
+        const results = wx.getStorageSync(key) || { win: 0, loss: 0 };
+        return results[result] || 0;
+    },
 
     hasValidMoves: function (currentColor) {
         return hasValidMoves(currentColor, this.data.board);
     },
 
-    showGameOver: function (winner) {
+    showGameOver: function (message) {
         const tempFlag = true;
         if (this.data.isDebug && !tempFlag) {
             // 这里节省测试时间，正常还恢复对话框
             this.restartGame();
         } else {
             wx.showModal({
-                title: `游戏结束，获胜方: ${winner}`,
+                title: message,
                 showCancel: false,
                 confirmText: '重新开始',
                 success: (res) => {
@@ -465,15 +645,9 @@ Page({
     // 抽取：处理移动操作
     handleMove: function (color, movePositions) {
         if (!this.validatePosition(movePositions, this.data.gamePhase, color)) {
-            this.handleInvalidMove(color, movePositions);
             return;
         }
         this.handleMoveDrop(color, movePositions);
-    },
-
-    handleInvalidMove: function (color, movePositions) {
-        const message = `${color}方上次移动的位置 [${movePositions}] 无效，请重新选择`;
-        this.showMessage(message);
     },
 
     // 处理移动阶段的落子逻辑
@@ -615,7 +789,6 @@ Page({
             // 先检查游戏是否结束
             const winner = await this.checkGameOver();
             if (winner) {
-                this.showGameOver(winner);
                 return;
             }
             if (this.data.extraMoves > 0) {
@@ -661,7 +834,7 @@ Page({
     },
 
     isMaxPiecesCount: function () {
-        return isMaxPiecesCount(this.data);
+        return isMaxPiecesCount(this.data.blackCount, this.data.whiteCount);
     },
 
     // 处理移除棋子后的游戏状态
@@ -732,7 +905,6 @@ Page({
         this.setData(updateData);
         const winner = await this.checkGameOver();
         if (winner) {
-            this.showGameOver(winner);
             return;
         }
 
@@ -838,7 +1010,7 @@ Page({
     undoMove: function (e) {
         const color = e.currentTarget.dataset.color; // 获取悔棋的玩家颜色
         console.log(`${color}方请求悔棋`);
-    
+
         // 检查是否有历史记录可以撤销
         if (!this.data.gameHistory || this.data.gameHistory.length < 2) {
             wx.showToast({
@@ -847,86 +1019,71 @@ Page({
             });
             return;
         }
-    
-        // 找到最后两条 role: "assistant" 的记录
-        const assistantActions = this.data.gameHistory.filter(record => record.role === "assistant");
-        if (assistantActions.length < 2) {
-            wx.showToast({
-                title: '没有足够的操作可以撤销',
-                icon: 'none'
-            });
-            return;
-        }
-    
-        // 获取最后两条记录
-        const lastAction = JSON.parse(assistantActions[assistantActions.length - 1].content);
-        const secondLastAction = JSON.parse(assistantActions[assistantActions.length - 2].content);
-    
+
+        // 从后往前查找，直到找到 role=user 且 content 包含“你的棋子颜色: color”
+        let assistantAction = null;
         // 恢复棋盘状态
-        let newBoard = deepCopy(this.data.board);
+        let newBoard = this.data.board;
         let updateData = {};
-    
-        // 撤销最后一条操作
-        this.revertAction(lastAction, newBoard, updateData);
-    
-        // 撤销倒数第二条操作
-        this.revertAction(secondLastAction, newBoard, updateData);
-    
+        updateData.gameHistory = deepCopy(this.data.gameHistory);
+        for (let i = this.data.gameHistory.length - 1; i >= 0; i--) {
+            const record = this.data.gameHistory[i];
+            // 找到对应的 role=assistant 的记录
+            if (record.role === "assistant") {
+                const userMessage = this.data.gameHistory[i - 1];
+                // 使用正则表达式提取颜色
+                const match = userMessage.content.match(/你的棋子颜色:\s*(\w+)/);
+                const playerColor = match ? match[1] : null;
+                assistantAction = JSON.parse(record.content);
+                // 执行回退操作
+                this.revertAction(assistantAction, newBoard, updateData, playerColor);
+            }
+
+            if (record.role === "user" && record.content.includes(`你的棋子颜色: ${color}`) && i < this.data.gameHistory.length - 1) {
+                break;
+            }
+            // 删除最后一条记录
+            updateData.gameHistory.pop();
+        }
+
         // 更新相关变量
         updateData.board = newBoard;
-        updateData.gameHistory = this.data.gameHistory.filter((record, index) => {
-            return index < this.data.gameHistory.length - 2 || record.role !== "assistant";
-        }); // 移除最后两条 role: "assistant" 的记录
-    
         // 恢复当前玩家
-        updateData.currentPlayer = 1 - this.data.currentPlayer;
-    
-        // 恢复额外落子或吃子机会
-        updateData.extraMoves = Math.max(0, this.data.extraMoves - (lastAction.extraMoves || 0) - (secondLastAction.extraMoves || 0));
-    
+        updateData.currentPlayer = this.data.players.indexOf(color);
+
         this.setData(updateData);
-    
+
         wx.showToast({
             title: `${color === 'black' ? '黑方' : '白方'}悔棋成功`,
             icon: 'none'
         });
     },
-    
+
     // 辅助方法：撤销单条操作
-    revertAction: function (action, board, updateData) {
-        const { action: actionType, position, newPosition, removedPiece } = action;
-    
-        if (actionType === GAME_PHASES.PLACING) {
+    revertAction: function (assistantAction, board, updateData, playerColor) {
+        const { action, position, newPosition } = assistantAction;
+
+        if (action === GAME_PHASES.PLACING) {
             // 撤销放置操作
             const [row, col] = position;
             const color = board[row][col].color;
             board[row][col] = null; // 移除最近放置的棋子            
             updateData[`${color}Count`] = (updateData[`${color}Count`] || this.data[`${color}Count`]) - 1; // 减少棋子计数
-        } else if (actionType === GAME_PHASES.MOVING) {
+            debugLog(this.data.isDebug, '撤销放置操作', updateData.blackCount, updateData.whiteCount);
+        } else if (action === GAME_PHASES.MOVING) {
             // 撤销移动操作
             const [startRow, startCol] = position;
             const [targetRow, targetCol] = newPosition;
             board[startRow][startCol] = board[targetRow][targetCol]; // 将棋子移回起始位置
             board[targetRow][targetCol] = null; // 清空目标位置
-        } else if (actionType === GAME_PHASES.REMOVING) {
+        } else if (action === GAME_PHASES.REMOVING) {
             // 撤销移除操作
             const [row, col] = position;
-            board[row][col] = removedPiece; // 恢复被移除的棋子
-            const color = removedPiece.color;
-            updateData[`${color}Count`] = (updateData[`${color}Count`] || this.data[`${color}Count`]) + 1; // 增加被移除棋子的计数
+            // 恢复被移除的棋子
+            const targetPostion = { targetRow: row, targetCol: col };
+            opponentColor = playerColor === 'black' ? 'white' : 'black';
+            this.handlePlaceDrop(opponentColor, targetPostion);
+            updateData[`${opponentColor}Count`] = (updateData[`${opponentColor}Count`] || this.data[`${opponentColor}Count`]) + 1; // 增加被移除棋子的计数
         }
-    
-        // 取消阵型状态
-        if (action.formationPositions) {
-            action.formationPositions.forEach(pos => {
-                const { row, col } = pos;
-                if (board[row] && board[row][col]) {
-                    board[row][col].isFormation = false; // 取消阵型状态
-                }
-            });
-        }
-    
-        // 撤销额外落子或吃子机会
-        updateData.extraMoves = (updateData.extraMoves || this.data.extraMoves) - (action.extraMoves || 0);
     },
 });

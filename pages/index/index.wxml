@@ -77,7 +77,7 @@
 
     <view class="controls">
         <!-- 游戏未开始时显示“更多设置”按钮 -->
-        <button class="control-button" bindtap="openMenu" wx:if="{{!isGameStarted}}">更多设置</button>
+        <button class="control-button" bindtap="openMenu" wx:if="{{!isGameStarted}}">查看更多</button>
 
         <!-- 游戏开始后显示“重新开始”按钮 -->
         <button class="control-button" bindtap="restartGame" wx:if="{{isGameStarted}}">重新开始</button>

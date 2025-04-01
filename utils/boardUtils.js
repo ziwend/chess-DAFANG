@@ -54,8 +54,8 @@ export function updateBoard(color, startRow, startCol, targetRow, targetCol, boa
     return newBoard;
 }
 
-export function isMaxPiecesCount (data) {
-    return data.blackCount + data.whiteCount === NUMBERS.MAX_PIECES_COUNT;
+export function isMaxPiecesCount (blackCount, whiteCount) {
+    return blackCount + whiteCount === NUMBERS.MAX_PIECES_COUNT;
 }
 
 // 新增：检查棋盘是否已满

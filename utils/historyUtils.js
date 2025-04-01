@@ -85,8 +85,8 @@ export function exportGameHistory(gameHistory) {
     });
 }
 
-export function debugLog(isDebug, message, data) {
+export function debugLog(isDebug, message, data, ...args) {
     if (isDebug) {
-        console.log(message, JSON.stringify(data));
+        console.log(message, JSON.stringify(data), ...args);
     }
 }
