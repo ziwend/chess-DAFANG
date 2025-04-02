@@ -475,8 +475,9 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     // 再复查一下移除该棋子后对方的阵型是否被破坏
                     const tempBoard = deepCopy(board);
                     tempBoard[pos.row][pos.col] = null;
-                    const formationUpdateDestroy =  checkFormation(pos.row, pos.col, opponentColor, tempBoard);
-                    if (formationUpdateDestroy != null && formationUpdateDestroy.extraMoves >= tempOpponentExtraMoves) {
+                    const formationUpdateDestroy =  checkFormation(newRow, newCol, opponentColor, tempBoard);
+                    // 破坏后的吃子数量还不如之前移除另外一个棋子破坏的吃子数量
+                    if (formationUpdateDestroy != null && formationUpdate.extraMoves - formationUpdateDestroy.extraMoves <= tempOpponentExtraMoves) {
                         debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，该吃子破坏对方阵型带来的效果不如之前的位置：`, { pos, tempOpponentPosition });
                         continue;
                     } 
@@ -485,11 +486,14 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     const result = countAdjacentPieces(pos.row, pos.col, currentColor, opponentColor, board);
                     if (result.adjacentOpponentCount < countAdjacentOpponent) {
                         countAdjacentOpponent = result.adjacentOpponentCount;
-                        if (formationUpdateDestroy != null && formationUpdateDestroy.extraMoves < tempOpponentExtraMoves) {
-                            tempOpponentExtraMoves = formationUpdateDestroy.extraMoves;
+                        if (formationUpdateDestroy != null) {
+                            tempOpponentExtraMoves = formationUpdate.extraMoves - formationUpdateDestroy.extraMoves;
+                            debugLog(CONFIG.DEBUG, `1-${currentColor}移除对方后只能部分破坏对方阵型`, { pos, tempOpponentPosition });
+                            continue;
                         } else {
                             tempOpponentExtraMoves = formationUpdate.extraMoves;
-                        }
+                        }                        
+                        
                         tempOpponentPosition = [pos.row, pos.col];
                         debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，会获得更多奖励，且该位置周围棋子比之前的少:`, { pos, tempOpponentPosition });
                     } else if (result.adjacentOpponentCount === countAdjacentOpponent) {
