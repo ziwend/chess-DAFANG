@@ -1,7 +1,8 @@
 import { requestAPI } from './requestUtils.js';
-import { saveUserMessageToHistory, saveAssistantMessageToHistory } from './historyUtils.js';
+import { saveUserMessageToHistory, saveAssistantMessageToHistory, debugLog } from './historyUtils.js';
 import { getValidPositions } from './positionUtils.js';
 import { isRepeatingMove } from './validationUtils.js';
+import { CONFIG } from './gameConstants.js';
 
 export async function handleAITurn(phase, aicolor, data, setData, showMessage, processAIDecision) {
     if (data.isGameOver || data.playerConfig[aicolor].playerType === 'self') {
@@ -97,10 +98,8 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
         if (!content || typeof content !== 'string') {
             throw new Error('AI 返回的内容无效');
         }
-        if (data.isDebug) {
-            console.log(`ai 决策 =`, JSON.stringify(content));
-        }
-
+        debugLog(CONFIG.DEBUG, `${aicolor}-AI 决策`, content);
+ 
         jsonMatch = content.match(/\{.*\}/);
         if (!jsonMatch) {
             updateHistoryAndThrowError(phase, aicolor, content, '未找到有效 JSON 数据', data, setData);
@@ -109,10 +108,7 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
     } else { // 不使用 AI 时，本地生成决策
         jsonMatch = getRandomDecision(validPositions, data, setData);
     }
-
-    if (data.isDebug) {
-        console.log(`${aicolor === 'black' ? '黑方' : '白方'}, 决策 =`, jsonMatch[0]);
-    }
+    debugLog(CONFIG.DEBUG, `${aicolor === 'black' ? '黑方' : '白方'}, 决策 =`, jsonMatch[0]);
 
     let decision;
     try {
@@ -139,9 +135,7 @@ function updateHistoryAndThrowError(phase, aicolor, content, errorMessage, data,
     setData({
         gameHistory: userMessage.gameHistory
     });
-    if (data.isDebug) {
-        console.log(`${aicolor}-AI 决策 ${errorMessage}`);
-    }
+    debugLog(CONFIG.DEBUG, `${aicolor}-AI 决策`,errorMessage);
     throw new Error(errorMessage);
 }
 
@@ -156,9 +150,7 @@ function getRandomDecision(validPositions, data, setData) {
             });
             return [JSON.stringify(randomDecision)];
         } else {
-            if (data.isDebug) {
-                console.log('随机决策已重复', randomIndex, JSON.stringify(validPositions));
-            }
+            debugLog(CONFIG.DEBUG, '随机决策已重复', validPositions);
             return getRandomDecision(validPositions, data, setData);
         }
     }

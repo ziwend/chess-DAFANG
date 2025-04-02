@@ -371,7 +371,7 @@ function getPossibleFormationPositions(uniquePositions, tempBoard, currentColor,
 }
 
 function getValidRemovePositions(currentColor, opponentColor, data) {
-    const { board, blackCount, whiteCount, isDebug } = data;
+    const { board, blackCount, whiteCount } = data;
     const validPositions = [];
     let tempPosition = null;
     let tempOpponentPosition = null;
@@ -475,7 +475,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     // 再复查一下移除该棋子后对方的阵型是否被破坏
                     const tempBoard = deepCopy(board);
                     tempBoard[pos.row][pos.col] = null;
-                    const formationUpdateDestroy =  checkFormation(newRow, newCol, opponentColor, tempBoard);
+                    const formationUpdateDestroy =  checkFormation(pos.row, pos.col, opponentColor, tempBoard);
                     if (formationUpdateDestroy != null && formationUpdateDestroy.extraMoves >= tempOpponentExtraMoves) {
                         debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，该吃子破坏对方阵型带来的效果不如之前的位置：`, { pos, tempOpponentPosition });
                         continue;
@@ -652,6 +652,7 @@ function getValidMoves(currentColor, opponentColor, data) {
             let countAdjacentOpponent = 0
             let possiblePosition = null;
             let commonPositions = [];
+            let evaluateFormationResult = null;
             for (const dir of DIRECTIONS.ADJACENT) {
                 const newRow = row + dir.dx;
                 const newCol = col + dir.dy;
@@ -688,9 +689,8 @@ function getValidMoves(currentColor, opponentColor, data) {
                 }
 
                 // 再判断移动后是否会阻止对方形成阵型
-                const evaluateFormationResult = evaluateFormation(newRow, newCol, opponentColor, currentColor, tempBoard, tempOpponentExtraMoves);
-                if (evaluateFormationResult != null && tempOpponentExtraMoves <= evaluateFormationResult) {
-                    tempOpponentExtraMoves = evaluateFormationResult;
+                evaluateFormationResult = evaluateFormation(newRow, newCol, opponentColor, currentColor, tempBoard, tempOpponentExtraMoves);
+                if (evaluateFormationResult != null && tempOpponentExtraMoves <= evaluateFormationResult) {                    
                     // 是不是goodmoves需要进一步判断
                     possiblePosition = [newRow, newCol];
                     debugLog(CONFIG.DEBUG, `2、${currentColor}-${row},${col}move可阻止对方形成阵型，但是需要进一步判断移动后对方还能组成阵型吗 `, possiblePosition);
@@ -708,9 +708,9 @@ function getValidMoves(currentColor, opponentColor, data) {
             }
 
             // 如果移动给了对方机会，且吃子更多
-            const evaluateFormationResult = evaluateFormation(row, col, opponentColor, currentColor, tempBoard, tempOpponentExtraMoves);
-            if (evaluateFormationResult != null) {
-                if (tempOpponentExtraMoves < evaluateFormationResult) {
+            const newEvaluateFormationResult = evaluateFormation(row, col, opponentColor, currentColor, tempBoard, tempOpponentExtraMoves);
+            if (newEvaluateFormationResult != null) {
+                if (evaluateFormationResult < newEvaluateFormationResult) {
                     debugLog(CONFIG.DEBUG, `4、${currentColor}-${row},${col} move后对方会形成阵型, 且获取更多的吃子tempOpponentExtraMoves= `, tempOpponentExtraMoves);
                     if (possiblePosition) {
                         worstMoves.push({
@@ -732,6 +732,8 @@ function getValidMoves(currentColor, opponentColor, data) {
                         debugLog(CONFIG.DEBUG, `4、${currentColor}-move后对方会形成阵型, worstMoves: `, worstMoves);
                         continue;
                     }
+                } else if (evaluateFormationResult === newEvaluateFormationResult) {
+                    debugLog(CONFIG.DEBUG, `4、${currentColor}-${row},${col} move后对方会形成阵型, 但是获取的吃子数与对方一样，待考虑是否返回: `, commonPositions, possiblePosition);
                 }
             }
 
@@ -741,6 +743,7 @@ function getValidMoves(currentColor, opponentColor, data) {
                     position: [row, col],
                     newPosition: possiblePosition
                 };
+                tempOpponentExtraMoves = evaluateFormationResult;
                 debugLog(CONFIG.DEBUG, `3、${currentColor}-${row},${col}mov没有给对方带来机会，可阻止对方形成阵型 `, goodMoves);
                 continue;
             }

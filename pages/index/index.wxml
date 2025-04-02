@@ -3,7 +3,26 @@
         <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
         <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
     </view>
-
+    <view class="stats-card">
+        <view class="stats-row">
+            <view class="rank">段位：{{playerStats.rank}}</view>
+            <view class="divider">|</view>
+            <view class="points">
+                积分：{{playerStats.totalPoints}}
+                <text class="help-icon" bindtap="toggleDailyTasks">?</text>
+            </view>
+        </view>
+    
+        <!-- 每日任务部分 -->
+        <block wx:if="{{showDailyTasks}}">
+            <view class="daily-tasks">
+                <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
+                    <text>{{item.desc}}</text>
+                    <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+                </view>
+            </view>
+        </block>
+    </view>
     <!-- 黑子棋盒 -->
     <view class="player-box">
         <!-- 黑方悔棋按钮 -->
@@ -25,6 +44,8 @@
         <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="black">设置黑方</button>
     </view>
     <view class="board-container">
+    <!-- 悬浮的开始按钮 -->
+    <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
         <!-- 棋盘蒙版 -->
         <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
 
@@ -72,8 +93,7 @@
         <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="white">设置白方</button>
     </view>
 
-    <!-- 悬浮的开始按钮 -->
-    <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
+    
 
     <view class="controls">
         <!-- 游戏未开始时显示“更多设置”按钮 -->

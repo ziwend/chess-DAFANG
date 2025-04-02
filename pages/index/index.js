@@ -8,6 +8,7 @@ import { hasValidMoves, updateBoard, isMaxPiecesCount, isBoardWillFull } from '.
 import { handleAITurn } from '../../utils/aiUtils.js';
 import { validatePosition } from '../../utils/validationUtils.js';
 import { deepCopy } from '../../utils/boardUtils.js';
+import { RewardManager, RANKS } from '../../utils/rewardManager.js';
 
 // 游戏主页面逻辑
 Page({
@@ -19,7 +20,11 @@ Page({
         lastRandomDecision: null,  // 新增：存储上一次的随机决策
         isGameStarted: false,
         isGameOver: false,
-        boardRectCache: null  // 新增：缓存棋盘边界矩形
+        boardRectCache: null,  // 新增：缓存棋盘边界矩形
+        playerStats: null,
+        dailyTasks: [],
+        newAchievements: [],
+        showDailyTasks: false
     },
 
     // 跳转到规则页面
@@ -38,7 +43,7 @@ Page({
     openMenu: function () {
         wx.showActionSheet({
             itemList: ['我的战绩', '检查github更新', '检查gitee更新'], // 添加“检查更新”选项
-            success: res =>  {
+            success: res => {
                 // 根据选择的菜单项执行相应操作
                 if (res.tapIndex === 0) {
                     // 获取所有战绩
@@ -81,23 +86,23 @@ Page({
             local: {},  // 本地对战成绩
             ai: {}      // AI对战成绩
         };
-    
+
         try {
             // 遍历所有可能的配置
             colors.forEach(color => {
                 statistics.local[color] = {};
                 statistics.ai[color] = {};
-                
+
                 // 获取所有存储的键
                 const keys = wx.getStorageInfoSync().keys;
-                
+
                 // 过滤出与当前颜色相关的记录
                 const colorKeys = keys.filter(key => key.startsWith(`gameResults_${color}_`));
-                
+
                 colorKeys.forEach(key => {
                     const results = wx.getStorageSync(key) || { win: 0, loss: 0 };
                     const [_, __, opponent] = key.split('_'); // gameResults_black_easy
-                    
+
                     // 根据对手类型分类
                     if (['easy', 'medium', 'hard'].includes(opponent)) {
                         statistics.local[color][opponent] = results;
@@ -106,7 +111,7 @@ Page({
                     }
                 });
             });
-    
+
             return statistics;
         } catch (error) {
             console.error('获取战绩失败:', error);
@@ -120,20 +125,20 @@ Page({
             };
         }
     },
-    
+
     showStatistics: function (statistics) {
         let message = '';
         const colors = ['black', 'white'];
         const difficulties = ['easy', 'medium', 'hard'];
-        
+
         // 对战本地玩家战绩
         message += '=== 对战本机战绩 ===\n\n';
         colors.forEach(color => {
-            const hasLocalGames = difficulties.some(diff => 
-                statistics.local[color][diff] && 
+            const hasLocalGames = difficulties.some(diff =>
+                statistics.local[color][diff] &&
                 (statistics.local[color][diff].win > 0 || statistics.local[color][diff].loss > 0)
             );
-            
+
             if (hasLocalGames) {
                 message += `${color === 'black' ? '执黑方先手' : '执白方后手'}:\n`;
                 difficulties.forEach(difficulty => {
@@ -150,12 +155,12 @@ Page({
                 message += '\n';
             }
         });
-    
+
         // 对战AI战绩
-        const hasAiGames = colors.some(color => 
+        const hasAiGames = colors.some(color =>
             Object.keys(statistics.ai[color]).length > 0
         );
-        
+
         if (hasAiGames) {
             message += '=== 对战AI战绩 ===\n\n';
             colors.forEach(color => {
@@ -172,11 +177,11 @@ Page({
                 }
             });
         }
-    
+
         if (message === '') {
             message = '暂无对战记录';
         }
-    
+
         // 使用模态框展示战绩
         wx.showModal({
             title: '我的战绩',
@@ -194,6 +199,30 @@ Page({
 
         this.setData({
             playerConfig: playerConfig
+        });
+    },
+    onLoad: function () {
+        // 加载玩家统计数据
+        const playerStats = wx.getStorageSync('playerStats') || {
+            totalGames: 0,
+            totalWins: 0,
+            totalPoints: 0,
+            achievements: [],
+            rank: RANKS[0].name
+        };
+
+        // 获取每日任务
+        const dailyTasks = RewardManager.getDailyTasks();
+
+        this.setData({
+            playerStats,
+            dailyTasks
+        });
+    },
+
+    toggleDailyTasks: function () {
+        this.setData({
+            showDailyTasks: !this.data.showDailyTasks
         });
     },
 
@@ -309,7 +338,8 @@ Page({
                     }
                     ]
                 });
-
+                // 等待导出完成
+                await this.exportGameHistory();
                 let key = null;
                 let message = null;
                 if (this.data.playerConfig[winnerColor].playerType === 'self') {
@@ -324,7 +354,35 @@ Page({
 
                     this.recordGameResult(key, 'win');
                     const totalWins = this.getGameResultCount(key, 'win');
-                    message = `恭喜您获胜啦！您已经打败对手${totalWins}次了，继续加油！`;
+                    message = `恭喜您获胜啦！获得20积分，继续加油！`;
+                    // 更新玩家统计和检查成就
+                    const gameData = {
+                        isWinner: true,
+                        totalGames: this.data.playerStats.totalGames + 1,
+                        totalWins: this.data.playerStats.totalWins + 1,
+                        winStreak: this.data.winStreak || 0
+                    };
+
+                    const newAchievements = RewardManager.checkAchievements(gameData, this.data.playerStats);
+                    const { stats, tasks, pointsEarned } = RewardManager.updatePlayerStats(gameData);
+                    this.setData({
+                        playerStats: stats,
+                        dailyTasks: tasks,
+                        newAchievements
+                    });
+                    // 显示任务完成信息
+                    if (pointsEarned > 0) {
+                        wx.showToast({
+                            title: `完成每日任务，获得${pointsEarned}积分！`,
+                            icon: 'success',
+                            duration: 2000
+                        });
+                    } else if (newAchievements.length > 0) {
+                        this.showAchievements(newAchievements);
+                    } else {
+                        this.showGameOver(message);
+                    }
+
                 } else if (this.data.playerConfig[losserColor].playerType === 'self') {
                     // 记录失败信息
                     if (this.data.playerConfig[winnerColor].playerType === 'local') {
@@ -339,6 +397,34 @@ Page({
                     } else {
                         message = `哦噢，您被打败了！再来一场对决试试？`;
                     }
+
+                    // 更新每日任务
+                    const gameData = {
+                        isWinner: false,
+                        totalGames: this.data.playerStats.totalGames + 1,
+                        totalWins: this.data.playerStats.totalWins,
+                        winStreak: this.data.winStreak || 0
+                    };
+                    const newAchievements = RewardManager.checkAchievements(gameData, this.data.playerStats);
+                    const { stats, tasks, pointsEarned } = RewardManager.updatePlayerStats(gameData);
+
+                    // 显示任务完成信息
+                    if (pointsEarned > 0) {
+                        wx.showToast({
+                            title: `完成每日任务，获得${pointsEarned}积分！`,
+                            icon: 'success',
+                            duration: 2000
+                        });
+                    }else if (newAchievements.length > 0) {
+                        this.showAchievements(newAchievements);
+                    } else {
+                        this.showGameOver(message);
+                    }
+
+                    this.setData({
+                        playerStats: stats,
+                        dailyTasks: tasks
+                    });
                 }
                 if (message === null) {
                     message = `游戏结束，获胜方: ${winner}`;
@@ -346,14 +432,26 @@ Page({
 
                 debugLog(this.data.isDebug, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
 
-                // 等待导出完成
-                await this.exportGameHistory();
+
                 this.showGameOver(message);
                 return winner; // 游戏结束，返回winner             
             }
         }
 
         return null; // 游戏未结束
+    },
+    showAchievements: function (achievements) {
+        let message = '🎉 恭喜获得新成就！\n\n';
+        achievements.forEach(achievement => {
+            message += `${achievement.name}: ${achievement.desc}\n获得 ${achievement.points} 点积分\n\n`;
+        });
+
+        wx.showModal({
+            title: '新成就解锁',
+            content: message,
+            showCancel: false,
+            confirmText: '太棒了'
+        });
     },
     recordGameResult: function (key, result) {
         const results = wx.getStorageSync(key) || { win: 0, loss: 0 };

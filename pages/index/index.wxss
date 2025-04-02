@@ -351,3 +351,67 @@
     border-color: transparent transparent transparent #000000;
     /* 让左侧部分有颜色，形成三角形 */
 }
+/*顶部统计信息*/
+.rank, .points {
+    font-size: 28rpx;
+    color: #333;
+}
+
+.divider {
+    color: #999;
+    font-size: 24rpx;
+}
+
+/* 卡片样式 */
+.stats-card {
+    background-color: #ffffff;
+    padding: 20rpx;
+    border-radius: 16rpx;
+    box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.3);
+    min-width: 420rpx;
+}
+
+/* 段位和积分行 */
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 28rpx;
+    color: #333;
+}
+
+/* 问号按钮样式 */
+.help-icon {
+    display: inline-block;
+    width: 32rpx;
+    height: 32rpx;
+    line-height: 32rpx;
+    text-align: center;
+    background: #666;
+    color: white;
+    border-radius: 50%;
+    margin-left: 10rpx;
+    font-size: 24rpx;
+}
+
+/* 每日任务部分 */
+.daily-tasks {
+    margin-top: 20rpx;
+    padding: 20rpx;
+    background-color: #f9f9f9;
+    border-radius: 12rpx;
+    box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.1);
+}
+
+.task {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10rpx 0;
+    font-size: 26rpx;
+    color: #666;
+}
+
+.task:not(:last-child) {
+    border-bottom: 1rpx solid #eee;
+}

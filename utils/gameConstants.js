@@ -109,6 +109,6 @@ export const DEFAULT_PLAYER_CONFIG = {
 export const INIT_MESG = "点击中间按钮，从黑方开始轮流布子";
 
 export const CONFIG = {
-    DEBUG: false,
+    DEBUG: true,
     // 其他全局配置...
 };
