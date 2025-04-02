@@ -335,7 +335,7 @@ Page({
                     this.recordGameResult(key, 'loss');
                     const totalWins = this.getGameResultCount(key, 'win');
                     if (totalWins > 0) {
-                        message = `哦噢，您被打败了！没关系，您已经打败对手${totalWins}次了，再来一场对决试试？`;
+                        message = `哦噢，您被打败了！没关系，您已经战胜对手${totalWins}次了，再来一场对决试试？`;
                     } else {
                         message = `哦噢，您被打败了！再来一场对决试试？`;
                     }
