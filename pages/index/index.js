@@ -354,7 +354,7 @@ Page({
 
                     this.recordGameResult(key, 'win');
                     const totalWins = this.getGameResultCount(key, 'win');
-                    message = `恭喜您获胜啦！获得20积分，继续加油！`;
+                    message = `恭喜您获胜啦！您已经打败对手${totalWins}次了，继续加油！`;
                     // 更新玩家统计和检查成就
                     const gameData = {
                         isWinner: true,
@@ -415,7 +415,7 @@ Page({
                             icon: 'success',
                             duration: 2000
                         });
-                    }else if (newAchievements.length > 0) {
+                    } else if (newAchievements.length > 0) {
                         this.showAchievements(newAchievements);
                     } else {
                         this.showGameOver(message);
@@ -428,12 +428,10 @@ Page({
                 }
                 if (message === null) {
                     message = `游戏结束，获胜方: ${winner}`;
+                    debugLog(this.data.isDebug, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
+                    this.showGameOver(message);
                 }
 
-                debugLog(this.data.isDebug, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
-
-
-                this.showGameOver(message);
                 return winner; // 游戏结束，返回winner             
             }
         }
@@ -1162,7 +1160,6 @@ Page({
         const { action, position, newPosition } = assistantAction;
 
         if (action === GAME_PHASES.PLACING) {
-            // 撤销放置操作
             const [row, col] = position;
             const color = board[row][col].color;
             board[row][col] = null; // 移除最近放置的棋子            

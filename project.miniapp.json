@@ -16,10 +16,10 @@
       "xweb": false
     },
     "icons": {
-      "hdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon2.jpg",
-      "xhdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon.jpg",
-      "xxhdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon.jpg",
-      "xxxhdpi": "c:/Users/daiziwen/Videos/Captures/demo/icon.jpg"
+      "hdpi": "icon2.jpg",
+      "xhdpi": "icon.jpg",
+      "xxhdpi": "icon.jpg",
+      "xxxhdpi": "icon.jpg"
     },
     "splashscreen": {
       "hdpi": "",

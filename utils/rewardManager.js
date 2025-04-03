@@ -26,7 +26,7 @@ export const RANKS = [
 const DAILY_TASKS = [
     { id: 'daily_game', desc: '每日对战1局', points: 10 },
     { id: 'daily_win', desc: '每日获胜1次', points: 20 },
-    { id: 'daily_formation', desc: '每日形成3次阵型', points: 15 }
+    { id: 'daily_duration', desc: '每日对战15分钟', points: 15 }
 ];
 
 export const RewardManager = {
@@ -110,7 +110,7 @@ export const RewardManager = {
                 } else if (task.id === 'daily_win' && gameData.totalWins >= 1) {
                     task.completed = true;
                     pointsEarned += task.points;
-                } else if (task.id === 'daily_formation' && gameData.formationCount >= 3) {
+                } else if (task.id === 'daily_duration' && gameData.formationCount >= 3) {
                     task.completed = true;
                     pointsEarned += task.points;
                 }

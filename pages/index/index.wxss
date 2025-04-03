@@ -11,6 +11,7 @@
     /* 调整内容均匀分布 */
     overflow-x: hidden;
     /* 禁止横向滚动 */
+    overflow-y: hidden;
 }
 
 .player-box {
@@ -414,4 +415,34 @@
 
 .task:not(:last-child) {
     border-bottom: 1rpx solid #eee;
+}
+
+/* iPad 或大屏设备的样式调整 */
+@media (min-width: 768px) {
+    .board {
+        width: 70vmin;
+        height: 70vmin;
+        max-width: 500rpx;
+        max-height: 500rpx;
+    }
+
+    .piece {
+        width: 50rpx;
+        height: 50rpx;
+    }
+}
+
+/* 更大屏幕（如桌面设备）的样式调整 */
+@media (min-width: 1024px) {
+    .board {
+        width: 60vmin;
+        height: 60vmin;
+        max-width: 400rpx;
+        max-height: 400rpx;
+    }
+
+    .piece {
+        width: 40rpx;
+        height: 40rpx;
+    }
 }

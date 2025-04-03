@@ -99,20 +99,20 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
             throw new Error('AI 返回的内容无效');
         }
         debugLog(CONFIG.DEBUG, `${aicolor}-AI 决策`, content);
- 
+
         jsonMatch = content.match(/\{.*\}/);
         if (!jsonMatch) {
             updateHistoryAndThrowError(phase, aicolor, content, '未找到有效 JSON 数据', data, setData);
         }
 
     } else { // 不使用 AI 时，本地生成决策
-        jsonMatch = getRandomDecision(validPositions, data, setData);
-    }
-    debugLog(CONFIG.DEBUG, `${aicolor === 'black' ? '黑方' : '白方'}, 决策 =`, jsonMatch[0]);
+        jsonMatch = getRandomDecision(validPositions, aicolor, data);
+    }    
 
     let decision;
     try {
         decision = JSON.parse(jsonMatch[0]);
+        debugLog(CONFIG.DEBUG, `${aicolor === 'black' ? '黑方' : '白方'}, 决策 =`, decision);
     } catch (error) {
         updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], `JSON 解析失败: ${error.message}`, data, setData);
     }
@@ -122,7 +122,7 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
     }
 
     if (phase === 'moving' && validPositions.length > 1 && isRepeatingMove(aicolor, decision, data)) {
-        updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], 'AI 决策是重复移动', data, setData);
+        updateHistoryAndThrowError(phase, aicolor, decision, 'AI 决策是重复移动', data, setData);
     }
 
     return decision;
@@ -135,13 +135,25 @@ function updateHistoryAndThrowError(phase, aicolor, content, errorMessage, data,
     setData({
         gameHistory: userMessage.gameHistory
     });
-    debugLog(CONFIG.DEBUG, `${aicolor}-AI 决策`,errorMessage);
-    throw new Error(errorMessage);
+    debugLog(CONFIG.DEBUG, `${aicolor}-AI 决策`, errorMessage);
+    // 构造自定义错误对象
+    const error = {
+        errorMessage,
+        decision: content
+    };
+    throw error; // 抛出自定义错误对象
 }
 
-function getRandomDecision(validPositions, data, setData) {
-    const randomIndex = Math.floor(Math.random() * validPositions.length);
-    let randomDecision = null;
+function getRandomDecision(validPositions,aicolor, data) {    
+    if (validPositions.length > 1) {
+        const randomIndex = Math.floor(Math.random() * validPositions.length);
+        const decision = validPositions[randomIndex];
+        if (data.gamePhase === 'moving' && isRepeatingMove(aicolor, decision, data)){
+            return [JSON.stringify(validPositions[validPositions.length - 1 - randomIndex])];
+        }
+        return [JSON.stringify(validPositions[randomIndex])];
+    }
+    /* 这里暂时不考虑重复决策的情况，因为如果生成的决策是重复的，会直接抛出异常
     if (validPositions.length > 1) {
         if (data.lastRandomDecision !== randomIndex) {
             randomDecision = validPositions[randomIndex];
@@ -154,7 +166,7 @@ function getRandomDecision(validPositions, data, setData) {
             return getRandomDecision(validPositions, data, setData);
         }
     }
-
+    */
     return [JSON.stringify(validPositions[0])];
 }
 

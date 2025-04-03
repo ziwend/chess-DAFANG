@@ -1,4 +1,4 @@
-<view class="container" bindtouchend="handleTouchEnd">
+<view class="container">
     <view class="game-status">
         <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
         <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
@@ -49,7 +49,7 @@
         <!-- 棋盘蒙版 -->
         <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
 
-        <view class="board">
+        <view class="board" bindtouchend="handleTouchEnd">
             <!-- 横线 -->
             <view class="horizontal-lines">
                 <view class="horizontal-line" wx:for="{{6}}" wx:key="index" style="top: {{index * (600/5)}}rpx;">

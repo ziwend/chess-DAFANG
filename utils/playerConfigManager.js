@@ -1,4 +1,4 @@
-import { DEFAULT_PLAYER_CONFIG } from './gameConstants';
+import { DEFAULT_PLAYER_CONFIG, CONFIG } from './gameConstants';
 export function loadPlayerConfig() {
     const playerConfig = wx.getStorageSync('playerConfig') || DEFAULT_PLAYER_CONFIG;
     return playerConfig;
@@ -15,7 +15,7 @@ export function updatePlayerConfig(color, config) {
     };
 
     // 处理 playerType 的切换逻辑
-    if (config.playerType !== currentConfig[color].playerType) {
+    if (!CONFIG.DEBUG && config.playerType !== currentConfig[color].playerType) {
         // 当切换为 self 时
         if (config.playerType === 'self') {
             // 将对方的 playerType 设置为当前方之前的类型
@@ -33,7 +33,7 @@ export function updatePlayerConfig(color, config) {
             };
         }
     }
-    
+
     if (typeof newPlayerConfig === 'object' && newPlayerConfig !== null) {
         wx.setStorageSync('playerConfig', newPlayerConfig);
     } else {
