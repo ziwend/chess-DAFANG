@@ -10,7 +10,7 @@ export function checkFormation(row, col, currentColor, newBoard) {
     // Try to get from cache
     const cachedResult = cacheManager.get(cacheKey);
     if (cachedResult) {
-        debugLog(CONFIG.DEBUG,'Cache hit for formation check:', cacheKey);
+        debugLog(CONFIG.DEBUG,'${currentColor}:Cache hit for formation check:', cacheKey);
         return cachedResult;
     }
     let extraMoves = 0;
