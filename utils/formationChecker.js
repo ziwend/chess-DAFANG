@@ -53,7 +53,7 @@ export function checkFormation(row, col, currentColor, newBoard) {
     } : null;
 
     // Save to cache before returning
-    cacheManager.set(cacheKey, result);
+    // cacheManager.set(cacheKey, result);
     return result;// 表示没有形成阵型
 }
 

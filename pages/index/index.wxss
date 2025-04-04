@@ -11,8 +11,7 @@
     /* 调整内容均匀分布 */
     overflow-x: hidden;
     /* 禁止横向滚动 */
-    overflow-y: hidden; // ios
-    position: fixed; // ios
+    overflow-y: hidden; /* ios */
 }
 
 .player-box {
