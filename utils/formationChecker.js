@@ -1,6 +1,18 @@
-import { DIRECTIONS} from './gameConstants.js';
+import { DIRECTIONS,CONFIG} from './gameConstants.js';
 import { isInBoard, isOnEdge } from './boardUtils.js';
+import { cacheManager } from './cacheManager.js';
+import { debugLog } from './historyUtils.js';
+
 export function checkFormation(row, col, currentColor, newBoard) {
+    // Generate cache key
+    const cacheKey = cacheManager.generateKey(row, col, currentColor, newBoard);
+    
+    // Try to get from cache
+    const cachedResult = cacheManager.get(cacheKey);
+    if (cachedResult) {
+        debugLog(CONFIG.DEBUG,'Cache hit for formation check:', cacheKey);
+        return cachedResult;
+    }
     let extraMoves = 0;
     let formationPositions = [];
     let formationType = '';
@@ -34,15 +46,15 @@ export function checkFormation(row, col, currentColor, newBoard) {
         formationType += dragonResult.dragonCount > 1 ? '双龙 ' : '大龙 ';
     }
 
-    if (extraMoves > 0) {
-        // 返回需要更新的数据
-        return {
-            extraMoves: extraMoves,
-            formationPositions: formationPositions,
-            formationType: formationType
-        };
-    }
-    return null; // 表示没有形成阵型
+    const result = extraMoves > 0 ? {
+        extraMoves: extraMoves,
+        formationPositions: formationPositions,
+        formationType: formationType
+    } : null;
+
+    // Save to cache before returning
+    cacheManager.set(cacheKey, result);
+    return result;// 表示没有形成阵型
 }
 
 export function checkSquare(row, col, currentColor, newBoard) {
