@@ -9,6 +9,7 @@ import { handleAITurn } from '../../utils/aiUtils.js';
 import { validatePosition } from '../../utils/validationUtils.js';
 import { deepCopy } from '../../utils/boardUtils.js';
 import { RewardManager, RANKS } from '../../utils/rewardManager.js';
+import { cacheManager } from '../../utils/cacheManager.js';
 
 // 游戏主页面逻辑
 Page({
@@ -431,7 +432,7 @@ Page({
                     debugLog(this.data.isDebug, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
                     this.showGameOver(message);
                 }
-
+                cacheManager.saveToStorage(); // 保存缓存到本地存储
                 return winner; // 游戏结束，返回winner             
             }
         }
@@ -473,7 +474,7 @@ Page({
     },
 
     showGameOver: function (message) {
-        const tempFlag = true;
+        const tempFlag = false; // 临时标志，测试用
         if (this.data.isDebug && !tempFlag) {
             // 这里节省测试时间，正常还恢复对话框
             this.restartGame();
@@ -687,8 +688,8 @@ Page({
         };
         if (formationUpdate) {
             formationUpdate.formationPositions.forEach(pos => {
-                if (newBoard[pos.row] && newBoard[pos.row][pos.col] && newBoard[pos.row][pos.col].isFormation === false) {
-                    newBoard[pos.row][pos.col].isFormation = true;
+                if (newBoard[pos[0]] && newBoard[pos[0]][pos[1]] && newBoard[pos[0]][pos[1]].isFormation === false) {
+                    newBoard[pos[0]][pos[1]].isFormation = true;
                 }
             });
 
@@ -767,11 +768,11 @@ Page({
         if (formationUpdateDestroy) {
             if (formationUpdateDestroy.formationPositions && Array.isArray(formationUpdateDestroy.formationPositions)) {
                 formationUpdateDestroy.formationPositions.forEach(pos => {
-                    if (newBoard[pos.row][pos.col]) {
+                    if (newBoard[pos[0]][pos[1]]) {
                         // 检查该棋子是否仍然参与其他阵型
-                        const isStillInFormation = this.isStillInFormation(pos.row, pos.col, color, newBoard);
+                        const isStillInFormation = this.isStillInFormation(pos[0], pos[1], color, newBoard);
                         if (!isStillInFormation) {
-                            newBoard[pos.row][pos.col].isFormation = false;
+                            newBoard[pos[0]][pos[1]].isFormation = false;
                         }
                     }
                 });
@@ -780,8 +781,8 @@ Page({
 
         if (formationUpdate) {
             formationUpdate.formationPositions.forEach(pos => {
-                if (newBoard[pos.row] && newBoard[pos.row][pos.col] && newBoard[pos.row][pos.col].isFormation === false) {
-                    newBoard[pos.row][pos.col].isFormation = true;
+                if (newBoard[pos[0]] && newBoard[pos[0]][pos[1]] && newBoard[pos[0]][pos[1]].isFormation === false) {
+                    newBoard[pos[0]][pos[1]].isFormation = true;
                 }
             });
 
@@ -952,9 +953,9 @@ Page({
         // 移除棋子后处理阵型状态
         if (formationUpdateDestroy && formationUpdateDestroy.formationPositions) {
             formationUpdateDestroy.formationPositions.forEach(pos => {
-                if (newBoard[pos.row][pos.col]) {
-                    const isStillInFormation = this.isStillInFormation(pos.row, pos.col, color, newBoard);
-                    if (!isStillInFormation) newBoard[pos.row][pos.col].isFormation = false;
+                if (newBoard[pos[0]][pos[1]]) {
+                    const isStillInFormation = this.isStillInFormation(pos[0], pos[1], color, newBoard);
+                    if (!isStillInFormation) newBoard[pos[0]][pos[1]].isFormation = false;
                 }
             });
         }

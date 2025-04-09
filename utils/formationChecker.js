@@ -10,7 +10,6 @@ export function checkFormation(row, col, currentColor, newBoard) {
     // Try to get from cache
     const cachedResult = cacheManager.get(cacheKey);
     if (cachedResult) {
-        debugLog(CONFIG.DEBUG,'${currentColor}:Cache hit for formation check:', cacheKey);
         return cachedResult;
     }
     let extraMoves = 0;
@@ -53,7 +52,9 @@ export function checkFormation(row, col, currentColor, newBoard) {
     } : null;
 
     // Save to cache before returning
-    // cacheManager.set(cacheKey, result);
+    console.log('not in cache:',cacheKey, result);
+    cacheManager.set(cacheKey, result);
+    
     return result;// 表示没有形成阵型
 }
 
@@ -75,20 +76,14 @@ export function checkSquare(row, col, currentColor, newBoard) {
                 isSquare = false;
                 break;
             }
-            tempFormationPositions.push({
-                row: newRow,
-                col: newCol
-            });
+            tempFormationPositions.push([newRow, newCol]); // 使用数组表示坐标
         }
         if (isSquare) {
             squareCount++; // 增加大方的数量
             formationPositions.push(...tempFormationPositions); // 添加中心点
             // 只添加一次中心点
             if (squareCount === 1) {
-                formationPositions.push({
-                    row: row,
-                    col: col
-                }); // 添加中心点
+                formationPositions.push([row, col]); // 添加中心点
             }
         }
     }
@@ -122,10 +117,7 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
             count++;
             startRow -= dx;
             startCol -= dy;
-            tempFormationPositions.push({
-                row: startRow,
-                col: startCol
-            });
+            tempFormationPositions.push([startRow, startCol]); // 使用数组表示坐标
         }
 
         // 向终点方向查找
@@ -133,10 +125,7 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
             count++;
             endRow += dx;
             endCol += dy;
-            tempFormationPositions.push({
-                row: endRow,
-                col: endCol
-            });
+            tempFormationPositions.push([endRow, endCol]); // 使用数组表示坐标
         }
 
         // 只有当起点和终点都在棋盘边线上时，才符合斜线规则
@@ -144,10 +133,7 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
             if (count >= 3) { // 只记录3斜及以上的斜线
                 diagonalCounts.push(count);
                 if (formationPositions.length === 0) { // 如果斜线没有棋子，则添加中心点
-                    formationPositions.push({
-                        row: row,
-                        col: col
-                    }); // 添加中心点
+                    formationPositions.push([row, col]); // 添加中心点
                 }
                 formationPositions.push(...tempFormationPositions);
             }
@@ -185,10 +171,7 @@ export function checkDragon(row, col, currentColor, newBoard) {
             if (edgeCount === 3) {
                 break;
             }
-            tempFormationPositions.push({
-                row: r,
-                col: c
-            });
+            tempFormationPositions.push([r, c]); // 使用数组表示坐标
             r += dx;
             c += dy;
         }
@@ -204,10 +187,7 @@ export function checkDragon(row, col, currentColor, newBoard) {
             if (edgeCount === 3) {
                 break;
             }
-            tempFormationPositions.push({
-                row: r,
-                col: c
-            });
+            tempFormationPositions.push([r, c]); // 使用数组表示坐标
             r -= dx;
             c -= dy;
         }
@@ -218,10 +198,7 @@ export function checkDragon(row, col, currentColor, newBoard) {
             formationPositions.push(...tempFormationPositions);
 
             if (dragonCount === 1) {
-                formationPositions.push({
-                    row: row,
-                    col: col
-                }); // 添加中心点
+                formationPositions.push([row, col]); // 添加中心点
             }
         }
     }
@@ -271,7 +248,7 @@ export function isStillInFormation(row, col, currentColor, newBoard) {
 export function hasNonSquarePieces(currentColor, formationPositions, row = 0, col = 0, board) {
     // 检查当前格子
     if (board[row][col] && board[row][col].color === currentColor) {
-        const isInFormation = formationPositions.some(pos => pos.row === row && pos.col === col);
+        const isInFormation = formationPositions.some(pos => pos[0] === row && pos[1] === col);
         if (!isInFormation) {
             const squareResult = checkSquare(row, col, currentColor, board);
             if (squareResult.squareCount === 0) {
