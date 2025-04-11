@@ -7,72 +7,11 @@ export function checkFormation(row, col, currentColor, newBoard) {
     // Generate cache key
     const cacheKey = cacheManager.generateKey(row, col, currentColor, newBoard);
 
-    // Early return if key length is too short to represent a valid formation
-    if (cacheKey.length < 6) {
-        debugLog(false, 'Key too short for valid formation:', cacheKey);
-        return null;
-    }
-
-    // Special check for keys of length 6
-    if (cacheKey.length === 6) {
-        // 创建有效的斜线组合
-        const validDiagonalSets = [
-            ['02', '11', '20'], // 左上到右下的斜线
-            ['03', '14', '25'], // 左上到右下的斜线
-            ['30', '41', '52'], // 左下到右上的斜线
-            ['35', '44', '53']  // 左下到右上的斜线
-        ];
-
-        // 将cacheKey分割成坐标对
-        const coordinates = [];
-        for (let i = 0; i < cacheKey.length; i += 2) {
-            coordinates.push(cacheKey.substr(i, 2));
-        }
-
-        // 检查是否匹配任意一组有效的斜线坐标
-        for (const diagonalSet of validDiagonalSets) {
-            if (diagonalSet.every(coord => coordinates.includes(coord))) {
-                // 将字符串坐标转换为数字坐标对
-                const formationPositions = diagonalSet.map(coord => [
-                    parseInt(coord[0]),
-                    parseInt(coord[1])
-                ]);
-
-                // 返回标准格式的结果
-                return {
-                    extraMoves: 1,
-                    formationPositions: formationPositions,
-                    formationType: "3斜 "
-                };
-            }
-        }
-
-        // 如果没有找到匹配的斜线组合
-        debugLog(false, `Invalid diagonal formation for key:`, cacheKey);
-        return null;
-    }
-
-    // Try to get from cache
-    const cachedResult = cacheManager.get(cacheKey);
-    if (cachedResult) {
-        return cachedResult;
-    }
-
-    // Check if this key is part of any existing null-valued key
+    // Check if this key is part of any existing key and Check existing formations
     const allCacheKeys = cacheManager.getAllKeys();
-    const hasNullParentKey = allCacheKeys.some(key => {
-        if (key.includes(cacheKey)) {
-            const parentResult = cacheManager.get(key);
-            if (parentResult === null) {
-                return true;
-            }
-        }
-        return false;
-    });
-
-    if (hasNullParentKey) {
-        debugLog(CONFIG.DEBUG, `Key ${cacheKey} is part of a known invalid formation`);
-        return null;
+    const existingFormation = checkExistingFormations(cacheKey, allCacheKeys);
+    if (existingFormation !== undefined) {
+        return existingFormation;
     }
 
     let extraMoves = 0;
@@ -117,13 +56,92 @@ export function checkFormation(row, col, currentColor, newBoard) {
     } : null;
 
     // Save to cache before returning
-    debugLog(CONFIG.DEBUG, 'Formation check result not in cache:', cacheKey, result);
+    debugLog(false, 'Formation check result not in cache:', cacheKey, result);
 
-    cacheManager.set(cacheKey, result);
-
+    if (cacheKey.length > 12) { // 短的key不需要缓存
+        cacheManager.set(cacheKey, result);
+    }
     return result;// 表示没有形成阵型
 }
 
+// Check if this key is part of any existing null-valued key or is part of a valid formation
+function checkExistingFormations(cacheKey, allCacheKeys) {
+    // Early return if key length is too short to represent a valid formation
+    if (cacheKey.length < 6) {
+        debugLog(false, 'Key too short for valid formation:', cacheKey);
+        return null;
+    }
+    // 将cacheKey分割成坐标对
+    const coordinates = [];
+    for (let i = 0; i < cacheKey.length; i += 2) {
+        coordinates.push([
+            parseInt(cacheKey.substr(i, 1)),
+            parseInt(cacheKey.substr(i + 1, 1))
+        ]);
+    }
+
+    // Special check for keys of length 6
+    if (cacheKey.length === 6) {
+        // 创建有效的斜线组合 (使用数组形式的坐标)
+        const validDiagonalSets = [
+            [[0, 2], [1, 1], [2, 0]], // 左上到右下的斜线
+            [[0, 3], [1, 4], [2, 5]], // 左上到右下的斜线
+            [[3, 0], [4, 1], [5, 2]], // 左下到右上的斜线
+            [[3, 5], [4, 4], [5, 3]]  // 左下到右上的斜线
+        ];
+
+        // 检查是否匹配任意一组有效的斜线坐标
+        // 检查是否匹配任意一组有效的斜线坐标
+        for (const diagonalSet of validDiagonalSets) {
+            if (diagonalSet.every(([row, col]) =>
+                coordinates.some(([r, c]) => r === row && c === col)
+            )) {
+                // 直接使用数组格式的坐标
+                return {
+                    extraMoves: 1,
+                    formationPositions: diagonalSet,
+                    formationType: "3斜 "
+                };
+            }
+        }
+
+        // 如果没有找到匹配的斜线组合
+        debugLog(false, `Invalid diagonal formation for key:`, cacheKey);
+        return undefined;
+    }
+    if (cacheKey.length <= 12) { // 短的key不需要缓存
+        return undefined;
+    }
+    // Try to get from cache
+    const cachedResult = cacheManager.get(cacheKey);
+    if (cachedResult !== undefined) {  // Change this line
+        return cachedResult;  // Now properly handles null values
+    }
+
+    for (const existingKey of allCacheKeys) {
+        // Skip if current key is not part of existing key
+        if (!existingKey.includes(cacheKey)) continue;
+
+        const existingResult = cacheManager.get(existingKey);
+
+        // If existing formation is null, this combination is invalid
+        if (existingResult === null) {
+            debugLog(false, `Key ${cacheKey} is part of a known invalid formation: ${existingKey}`);
+            return null;
+        }
+
+        // Check if all formation positions are in the shorter key coordinates
+        const isSubset = existingResult.formationPositions.every(([fRow, fCol]) =>
+            coordinates.some(([row, col]) => row === fRow && col === fCol)
+        );
+
+        if (isSubset) {
+            debugLog(false, `Key ${cacheKey} is part of valid formation: ${existingKey}`, existingResult);
+            return existingResult;
+        }
+    }
+    return undefined; // No matching formation found
+}
 export function checkSquare(row, col, currentColor, newBoard) {
     const board = newBoard;
     let squareCount = 0;

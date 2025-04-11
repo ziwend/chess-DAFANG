@@ -194,7 +194,7 @@ Page({
     // 从配置页面返回会重新加载
     onShow: function () {
         const playerConfig = loadPlayerConfig();
-        debugLog(CONFIG.DEBUG, 'onShow加载配置', playerConfig);
+        debugLog(false, 'onShow加载配置', playerConfig);
 
         this.setData({
             playerConfig: playerConfig
