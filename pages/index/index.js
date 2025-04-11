@@ -1,5 +1,5 @@
 // 导入游戏常量
-import { PLAYERS, GAMEHISTORY, NUMBERS, INITIAL_BOARD, GAME_PHASES, INIT_MESG } from '../../utils/gameConstants.js';
+import { PLAYERS, GAMEHISTORY, NUMBERS, INITIAL_BOARD, GAME_PHASES, INIT_MESG, CONFIG } from '../../utils/gameConstants.js';
 // 导入 棋手配置管理函数
 import { loadPlayerConfig } from '../../utils/playerConfigManager.js';
 import { isStillInFormation, checkFormation } from '../../utils/formationChecker.js';
@@ -194,9 +194,7 @@ Page({
     // 从配置页面返回会重新加载
     onShow: function () {
         const playerConfig = loadPlayerConfig();
-        if (this.data.isDebug) {
-            console.log('onShow加载配置', JSON.stringify(playerConfig));
-        }
+        debugLog(CONFIG.DEBUG, 'onShow加载配置', playerConfig);
 
         this.setData({
             playerConfig: playerConfig
@@ -507,9 +505,8 @@ Page({
             board: [],
             // ... 其他需要清理的状态
         });
-        if (this.data.isDebug) {
-            console.log('onUnload', JSON.stringify(this.data));
-        }
+
+        debugLog(CONFIG.DEBUG, 'onUnload', this.data);
     },
 
     // -------------手动下棋控制逻辑开始--------------
@@ -1106,7 +1103,8 @@ Page({
     // 悔棋逻辑
     undoMove: function (e) {
         const color = e.currentTarget.dataset.color; // 获取悔棋的玩家颜色
-        console.log(`${color}方请求悔棋`);
+
+        debugLog(CONFIG.DEBUG, `${color}方请求悔棋`);
 
         // 检查是否有历史记录可以撤销
         if (!this.data.gameHistory || this.data.gameHistory.length < 2) {

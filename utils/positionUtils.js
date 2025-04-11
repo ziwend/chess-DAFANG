@@ -218,7 +218,6 @@ function getBestFormationPosition(row, col, tempBoard, currentColor, opponentCol
                     const formationUpdate = checkFormation(row, col, currentColor, tempBoard);
                     if (formationUpdate) {
                         // 判断一下extramoves，记录到tempPosition和tempExtraMoves中
-                        // console.log('tempExtraMoves:', tempExtraMoves, 'formationUpdate.extraMoves:', formationUpdate.extraMoves);
                         if (tempExtraMoves < formationUpdate.extraMoves) { // 如果有额外移动次数
                             tempExtraMoves = formationUpdate.extraMoves;
                             tempPosition = [row, col];
@@ -246,7 +245,6 @@ function getBestFormationPosition(row, col, tempBoard, currentColor, opponentCol
                 const formationUpdate = checkFormation(row, col, opponentColor, tempBoard);
                 if (formationUpdate) {
                     // 判断一下extramoves，记录到tempPosition和tempExtraMoves中
-                    // console.log('tempOpponentExtraMoves:', tempOpponentExtraMoves, 'formationUpdate.extraMoves:', formationUpdate.extraMoves);
                     if (tempOpponentExtraMoves < formationUpdate.extraMoves) { // 如果有额外移动次数
                         tempOpponentExtraMoves = formationUpdate.extraMoves;
                         tempOpponentPosition = [row, col];
@@ -613,9 +611,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
     validPositions.forEach(pos => {
         if (!uniquePositions.some(p => p.row === pos.row && p.col === pos.col)) {
             uniquePositions.push(pos);
-        } else {
-            console.log('重复的位置:', pos);
-        }
+        } 
     });
 
     const movablePositions = uniquePositions.filter(pos => canMove(pos.row, pos.col, board));
@@ -831,7 +827,7 @@ function evaluateFormation(row, col, currentColor, opponentColor, board, tempExt
             return formationUpdate.extraMoves;
         }
         if (tempExtraMoves === formationUpdate.extraMoves) {
-            console.log(`7、${currentColor}会形成阵型，但是获得的奖励与之前的一样,待考虑是否返回: `, `[${row}, ${col}]`);
+            debugLog(CONFIG.DEBUG, `7、${currentColor}会形成阵型，但是获得的奖励与之前的一样,待考虑是否返回: `, `[${row}, ${col}]`);
         }
     }
     return 0;

@@ -1,4 +1,4 @@
-import { DIRECTIONS,CONFIG} from './gameConstants.js';
+import { DIRECTIONS, CONFIG } from './gameConstants.js';
 import { isInBoard, isOnEdge } from './boardUtils.js';
 import { cacheManager } from './cacheManager.js';
 import { debugLog } from './historyUtils.js';
@@ -6,12 +6,75 @@ import { debugLog } from './historyUtils.js';
 export function checkFormation(row, col, currentColor, newBoard) {
     // Generate cache key
     const cacheKey = cacheManager.generateKey(row, col, currentColor, newBoard);
-    
+
+    // Early return if key length is too short to represent a valid formation
+    if (cacheKey.length < 6) {
+        debugLog(false, 'Key too short for valid formation:', cacheKey);
+        return null;
+    }
+
+    // Special check for keys of length 6
+    if (cacheKey.length === 6) {
+        // 创建有效的斜线组合
+        const validDiagonalSets = [
+            ['02', '11', '20'], // 左上到右下的斜线
+            ['03', '14', '25'], // 左上到右下的斜线
+            ['30', '41', '52'], // 左下到右上的斜线
+            ['35', '44', '53']  // 左下到右上的斜线
+        ];
+
+        // 将cacheKey分割成坐标对
+        const coordinates = [];
+        for (let i = 0; i < cacheKey.length; i += 2) {
+            coordinates.push(cacheKey.substr(i, 2));
+        }
+
+        // 检查是否匹配任意一组有效的斜线坐标
+        for (const diagonalSet of validDiagonalSets) {
+            if (diagonalSet.every(coord => coordinates.includes(coord))) {
+                // 将字符串坐标转换为数字坐标对
+                const formationPositions = diagonalSet.map(coord => [
+                    parseInt(coord[0]),
+                    parseInt(coord[1])
+                ]);
+
+                // 返回标准格式的结果
+                return {
+                    extraMoves: 1,
+                    formationPositions: formationPositions,
+                    formationType: "3斜 "
+                };
+            }
+        }
+
+        // 如果没有找到匹配的斜线组合
+        debugLog(false, `Invalid diagonal formation for key:`, cacheKey);
+        return null;
+    }
+
     // Try to get from cache
     const cachedResult = cacheManager.get(cacheKey);
     if (cachedResult) {
         return cachedResult;
     }
+
+    // Check if this key is part of any existing null-valued key
+    const allCacheKeys = cacheManager.getAllKeys();
+    const hasNullParentKey = allCacheKeys.some(key => {
+        if (key.includes(cacheKey)) {
+            const parentResult = cacheManager.get(key);
+            if (parentResult === null) {
+                return true;
+            }
+        }
+        return false;
+    });
+
+    if (hasNullParentKey) {
+        debugLog(CONFIG.DEBUG, `Key ${cacheKey} is part of a known invalid formation`);
+        return null;
+    }
+
     let extraMoves = 0;
     let formationPositions = [];
     let formationType = '';
@@ -38,11 +101,13 @@ export function checkFormation(row, col, currentColor, newBoard) {
     }
 
     // 检查龙
-    const dragonResult = checkDragon(row, col, currentColor, newBoard);
-    if (dragonResult.dragonCount > 0) {
-        extraMoves += dragonResult.dragonCount * 4; // 每条龙增加4次额外落子
-        formationPositions.push(...dragonResult.formationPositions);
-        formationType += dragonResult.dragonCount > 1 ? '双龙 ' : '大龙 ';
+    if (cacheKey.length > 10) {
+        const dragonResult = checkDragon(row, col, currentColor, newBoard);
+        if (dragonResult.dragonCount > 0) {
+            extraMoves += dragonResult.dragonCount * 4; // 每条龙增加4次额外落子
+            formationPositions.push(...dragonResult.formationPositions);
+            formationType += dragonResult.dragonCount > 1 ? '双龙 ' : '大龙 ';
+        }
     }
 
     const result = extraMoves > 0 ? {
@@ -52,9 +117,10 @@ export function checkFormation(row, col, currentColor, newBoard) {
     } : null;
 
     // Save to cache before returning
-    console.log('not in cache:',cacheKey, result);
+    debugLog(CONFIG.DEBUG, 'Formation check result not in cache:', cacheKey, result);
+
     cacheManager.set(cacheKey, result);
-    
+
     return result;// 表示没有形成阵型
 }
 
@@ -69,7 +135,7 @@ export function checkSquare(row, col, currentColor, newBoard) {
         for (let [dx, dy] of pattern) {
             const newRow = row + dx;
             const newCol = col + dy;
-            const position = {targetRow: newRow, targetCol: newCol}
+            const position = { targetRow: newRow, targetCol: newCol }
             if (!isInBoard(newRow, newCol) ||
                 !board[newRow][newCol] ||
                 board[newRow][newCol].color !== currentColor) {
@@ -165,7 +231,7 @@ export function checkDragon(row, col, currentColor, newBoard) {
         let edgeCount = isOnEdge(row, col) ? 1 : 0; // 统计边线上的棋子数量
         let tempFormationPositions = [];
 
-        while (isInBoard(r,c) && board[r][c]?.color === currentColor) {
+        while (isInBoard(r, c) && board[r][c]?.color === currentColor) {
             count++;
             if (isOnEdge(r, c)) edgeCount++;
             if (edgeCount === 3) {
@@ -179,9 +245,9 @@ export function checkDragon(row, col, currentColor, newBoard) {
         // 向相反方向检查
         r = row - dx;
         c = col - dy;
-        
 
-        while (isInBoard(r,c) && board[r][c]?.color === currentColor) {
+
+        while (isInBoard(r, c) && board[r][c]?.color === currentColor) {
             count++;
             if (isOnEdge(r, c)) edgeCount++;
             if (edgeCount === 3) {
@@ -252,7 +318,7 @@ export function hasNonSquarePieces(currentColor, formationPositions, row = 0, co
         if (!isInFormation) {
             const squareResult = checkSquare(row, col, currentColor, board);
             if (squareResult.squareCount === 0) {
-                console.log('优先移除没有形成大方的棋子，比如第' + (row + 1) + '行, 第' + (col + 1) + '列的棋子');
+                debugLog(CONFIG.DEBUG, '优先移除没有形成大方的棋子，比如第' + (row + 1) + '行, 第' + (col + 1) + '列的棋子');
                 return true;
             } else {
                 formationPositions.push(...squareResult.formationPositions);

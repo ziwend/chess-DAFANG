@@ -138,7 +138,7 @@ function updateHistoryAndThrowError(phase, aicolor, content, errorMessage, data,
     debugLog(CONFIG.DEBUG, `${aicolor}-AI 决策`, errorMessage);
     // 构造自定义错误对象
     const error = {
-        errorMessage,
+        message: errorMessage,
         decision: content
     };
     throw error; // 抛出自定义错误对象

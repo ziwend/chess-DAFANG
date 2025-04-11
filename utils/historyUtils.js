@@ -1,4 +1,4 @@
-import { INITIAL_BOARD } from "./gameConstants";
+import { INITIAL_BOARD,CONFIG } from "./gameConstants";
 
 export function saveUserMessageToHistory(phase, playerColor, updatedHistory, lastActionResult, board) {
     const boardState = getBoardState(board);
@@ -50,7 +50,8 @@ export function exportGameHistory(gameHistory) {
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const newFilePath = `${basePath}_${timestamp}${fileExtension}`;
                 wx.getFileSystemManager().writeFileSync(newFilePath, data, 'utf8');
-                console.log("创建新文件:", newFilePath);
+
+                debugLog(CONFIG.DEBUG, "创建新文件:", newFilePath);
                 resolve();
             } else {
                 const filePath = `${wx.env.USER_DATA_PATH}/${files[index]}`;
@@ -58,7 +59,7 @@ export function exportGameHistory(gameHistory) {
                 if (stats.size + data.length <= maxFileSize) {
                     // 向找到的未满文件追加数据
                     wx.getFileSystemManager().appendFileSync(filePath, data, 'utf8');
-                    console.log("追加到现有文件:", filePath);
+                    debugLog(CONFIG.DEBUG, "追加到现有文件:", filePath);
                     resolve();
                 } else {
                     // 递归检查下一个文件
