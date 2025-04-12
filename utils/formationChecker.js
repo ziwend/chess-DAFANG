@@ -2,24 +2,162 @@ import { DIRECTIONS, CONFIG } from './gameConstants.js';
 import { isInBoard, isOnEdge } from './boardUtils.js';
 import { cacheManager } from './cacheManager.js';
 import { debugLog } from './historyUtils.js';
+import { FORMATION_POSITIONS } from './formationPositions.js';
 
-export function checkFormation(row, col, currentColor, newBoard) {
-    // Generate cache key
-    const cacheKey = cacheManager.generateKey(row, col, currentColor, newBoard);
+export function checkFormation(row, col, currentColor, board) {
+    let extraMoves = 0;
+    let formationPositions = [];
+    let formationType = '';
+    // 从 FORMATION_POSITIONS 中获取当前坐标的值
+    const formationData = FORMATION_POSITIONS.get(`${row}${col}`);
 
-    // Check if this key is part of any existing key and Check existing formations
-    const allCacheKeys = cacheManager.getAllKeys();
-    const existingFormation = checkExistingFormations(cacheKey, allCacheKeys);
-    if (existingFormation !== undefined) {
-        return existingFormation;
+    // 检查 square（大方）
+    const squareResult = checkSquare(currentColor, board, formationData.square);
+    if (squareResult) {
+        extraMoves += squareResult.extraMoves;
+        formationPositions.push(...squareResult.formationPositions);
+        formationType += squareResult.formationType;
     }
 
+    // 检查 diagonal（斜线）
+    const diagonalResult = checkDiagonal(currentColor, board, formationData.diagonal);
+
+    if (diagonalResult) {
+        extraMoves += diagonalResult.extraMoves;
+        formationPositions.push(...diagonalResult.formationPositions);
+        formationType += diagonalResult.formationType;
+    }
+
+    // 检查 dragon（龙）
+    const dragonResult = checkDragon(currentColor, board, formationData.dragon);
+    if (dragonResult) {
+        extraMoves += dragonResult.extraMoves;
+        formationPositions.push(...dragonResult.formationPositions);
+        formationType += dragonResult.formationType;
+    }
+
+    // 如果没有形成任何阵型，返回 null
+    if (extraMoves === 0) {
+        return null;
+    }
+
+    formationPositions.push([row, col]); // 添加中心点
+
+    return {
+        extraMoves,
+        formationPositions,
+        formationType
+    };
+}
+
+export function checkSquare(currentColor, board, squares) {
+    let squareCount = 0;
+    let formationPositions = [];
+
+    for (const square of squares) {
+        const tempPositions = [];
+        let isValid = true;
+        for (const [r, c] of square) {
+            if (board[r][c]?.color === currentColor) {
+                tempPositions.push([r, c]);
+            } else {
+                isValid = false;
+                break;
+            }
+        }
+        if (isValid) {
+            formationPositions.push(...tempPositions);
+            squareCount++;
+        }
+    }
+
+    if (squareCount > 0) {
+        return {
+            extraMoves: squareCount, // 每个大方增加 1 次额外落子
+            formationPositions,
+            formationType: squareCount > 1 ? `${squareCount}个大方 ` : '大方 '
+        };
+    }
+
+    return null;
+}
+
+export function checkDiagonal(currentColor, board, diagonals) {
+    let extraMoves = 0;
+    let formationPositions = [];
+    let formationType = '';
+
+    for (const diagonal of diagonals) {
+        const tempPositions = [];
+        let isValid = true;
+        for (const [r, c] of diagonal) {
+            if (board[r][c]?.color === currentColor) {
+                tempPositions.push([r, c]);
+            } else {
+                isValid = false;
+                break;
+            }
+        }
+        if (isValid) {
+            formationPositions.push(...tempPositions);
+            extraMoves += diagonal.length - 1; // 每个斜线增加 (count - 2) 次额外落子
+            formationType += `${diagonal.length + 1}斜 `;
+        }
+    }
+
+    if (extraMoves > 0) {
+        return {
+            extraMoves,
+            formationPositions,
+            formationType
+        };
+    }
+
+    return null;
+}
+
+export function checkDragon(currentColor, board, dragons) {
+    if (!dragons) return null;
+
+    let dragonCount = 0;
+    let formationPositions = [];
+
+    for (const dragon of dragons) {
+        const tempPositions = [];
+        let isValid = true;
+        for (const [r, c] of dragon) {
+            if (board[r][c]?.color === currentColor) {
+                tempPositions.push([r, c]);
+            } else {
+                isValid = false;
+                break;
+            }
+        }
+        if (isValid) {
+            formationPositions.push(...tempPositions);
+            dragonCount++;
+        }
+    }
+
+    if (dragonCount > 0) {
+        return {
+            extraMoves: dragonCount * 4, // 每条龙增加 4 次额外落子
+            formationPositions,
+            formationType: dragonCount > 1 ? '双龙 ' : '大龙 '
+        };
+    }
+
+    return null;
+}
+
+export function checkFormation2(row, col, currentColor, newBoard) {
     let extraMoves = 0;
     let formationPositions = [];
     let formationType = '';
     // const newBoard = this.data.board;
+    debugLog(CONFIG.DEBUG, `[${row},${col}]`, null);
     // 检查大方
-    const squareResult = checkSquare(row, col, currentColor, newBoard);
+    const squareResult = checkSquare2(row, col, currentColor, newBoard);
     if (squareResult.squareCount > 0) {
         extraMoves += squareResult.squareCount; // 每个大方增加1次额外落子
         formationPositions.push(...squareResult.formationPositions);
@@ -27,7 +165,7 @@ export function checkFormation(row, col, currentColor, newBoard) {
     }
 
     // 检查斜线
-    const diagonalResult = checkDiagonal(row, col, currentColor, newBoard);
+    const diagonalResult = checkDiagonal2(row, col, currentColor, newBoard);
     if (diagonalResult.diagonalCounts.length > 0) {
         // 去重，确保每个斜线只被计算一次
         const uniqueDiagonalCounts = diagonalResult.diagonalCounts;
@@ -40,14 +178,14 @@ export function checkFormation(row, col, currentColor, newBoard) {
     }
 
     // 检查龙
-    if (cacheKey.length > 10) {
-        const dragonResult = checkDragon(row, col, currentColor, newBoard);
-        if (dragonResult.dragonCount > 0) {
-            extraMoves += dragonResult.dragonCount * 4; // 每条龙增加4次额外落子
-            formationPositions.push(...dragonResult.formationPositions);
-            formationType += dragonResult.dragonCount > 1 ? '双龙 ' : '大龙 ';
-        }
+
+    const dragonResult = checkDragon2(row, col, currentColor, newBoard);
+    if (dragonResult.dragonCount > 0) {
+        extraMoves += dragonResult.dragonCount * 4; // 每条龙增加4次额外落子
+        formationPositions.push(...dragonResult.formationPositions);
+        formationType += dragonResult.dragonCount > 1 ? '双龙 ' : '大龙 ';
     }
+
 
     const result = extraMoves > 0 ? {
         extraMoves: extraMoves,
@@ -55,12 +193,6 @@ export function checkFormation(row, col, currentColor, newBoard) {
         formationType: formationType
     } : null;
 
-    // Save to cache before returning
-    debugLog(false, 'Formation check result not in cache:', cacheKey, result);
-
-    if (cacheKey.length > 12) { // 短的key不需要缓存
-        cacheManager.set(cacheKey, result);
-    }
     return result;// 表示没有形成阵型
 }
 
@@ -142,7 +274,7 @@ function checkExistingFormations(cacheKey, allCacheKeys) {
     }
     return undefined; // No matching formation found
 }
-export function checkSquare(row, col, currentColor, newBoard) {
+export function checkSquare2(row, col, currentColor, newBoard) {
     const board = newBoard;
     let squareCount = 0;
     let formationPositions = [];
@@ -164,21 +296,22 @@ export function checkSquare(row, col, currentColor, newBoard) {
         }
         if (isSquare) {
             squareCount++; // 增加大方的数量
-            formationPositions.push(...tempFormationPositions); // 添加中心点
+            formationPositions.push(...tempFormationPositions);
+
             // 只添加一次中心点
             if (squareCount === 1) {
                 formationPositions.push([row, col]); // 添加中心点
             }
         }
     }
-
+    debugLog(CONFIG.DEBUG, 'square:', formationPositions);
     return {
         squareCount: squareCount,
         formationPositions: formationPositions
     };
 }
 
-export function checkDiagonal(row, col, currentColor, newBoard) {
+export function checkDiagonal2(row, col, currentColor, newBoard) {
     const board = newBoard;
     let diagonalCounts = []; // 记录所有斜线的连续棋子数量
     let formationPositions = []; // 记录所有斜线的棋子位置
@@ -223,14 +356,14 @@ export function checkDiagonal(row, col, currentColor, newBoard) {
             }
         }
     }
-
+    debugLog(CONFIG.DEBUG, 'diagonal:', formationPositions);
     return {
         diagonalCounts: diagonalCounts,
         formationPositions: formationPositions
     };
 }
 
-export function checkDragon(row, col, currentColor, newBoard) {
+export function checkDragon2(row, col, currentColor, newBoard) {
     const board = newBoard;
 
     let dragonCount = 0; // 记录形成龙的数量
@@ -286,7 +419,7 @@ export function checkDragon(row, col, currentColor, newBoard) {
             }
         }
     }
-
+    debugLog(CONFIG.DEBUG, 'dragon:', formationPositions);
     return {
         dragonCount: dragonCount,
         formationPositions: formationPositions
@@ -294,9 +427,10 @@ export function checkDragon(row, col, currentColor, newBoard) {
 }
 
 export function hasNonFormationPieces(opponentColor, board) {
+    debugLog(CONFIG.DEBUG, 'hasNonFormationPieces:', opponentColor);
     for (let row = 0; row < 6; row++) {
         for (let col = 0; col < 6; col++) {
-            if (board[row][col] && board[row][col].color === opponentColor) {
+            if (board[row][col]?.color === opponentColor) {
                 if (!board[row][col].isFormation) {
                     return true; // 找到不在阵型中的棋子
                 }
@@ -308,28 +442,55 @@ export function hasNonFormationPieces(opponentColor, board) {
 }
 
 export function isStillInFormation(row, col, currentColor, newBoard) {
+    const formationData = FORMATION_POSITIONS.get(`${row}${col}`);
     // 检查大方
-    const squareResult = checkSquare(row, col, currentColor, newBoard);
-    if (squareResult.squareCount > 0) {
+    const squareResult = checkSquare(currentColor, newBoard, formationData.square);
+    if (squareResult) {
         return true; // 大方仍然完整
     }
 
     // 检查斜线
-    const diagonalResult = checkDiagonal(row, col, currentColor, newBoard);
-    if (diagonalResult.diagonalCounts.length > 0) {
+    const diagonalResult = checkDiagonal(currentColor, newBoard, formationData.diagonal);
+    if (diagonalResult) {
         return true;
     }
 
     // 检查龙
-    const dragonResult = checkDragon(row, col, currentColor, newBoard);
-    if (dragonResult.dragonCount > 0) {
+    const dragonResult = checkDragon(currentColor, newBoard, formationData.dragon);
+    if (dragonResult) {
         return true;
     }
 
     return false; // 如果没有参与任何阵型，返回 false
 }
+export function hasNonSquarePieces(currentColor, squarePositions, board) {
+    // 遍历棋盘的每个格子
+    for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 6; col++) {
+            // 检查当前格子
+            if (board[row][col] && board[row][col].color === currentColor) {
+                const isInFormation = squarePositions.some(pos => pos[0] === row && pos[1] === col);
+                if (!isInFormation) {
+                    const formationData = FORMATION_POSITIONS.get(`${row}${col}`);
 
-export function hasNonSquarePieces(currentColor, formationPositions, row = 0, col = 0, board) {
+                    // 检查 square（大方）
+                    const squareResult = checkSquare(currentColor, board, formationData.square);
+
+                    if (squareResult === null) {
+                        debugLog(CONFIG.DEBUG, '优先移除没有形成大方的棋子，比如第' + (row + 1) + '行, 第' + (col + 1) + '列的棋子');
+                        return true; // 找到不在阵型中的棋子
+                    } else {
+                        squarePositions.push(...squareResult.formationPositions);
+                    }
+                }
+            }
+        }
+    }
+
+    // 所有格子检查完毕，返回 false
+    return false;
+}
+export function hasNonSquarePieces2(currentColor, formationPositions, row = 0, col = 0, board) {
     // 检查当前格子
     if (board[row][col] && board[row][col].color === currentColor) {
         const isInFormation = formationPositions.some(pos => pos[0] === row && pos[1] === col);
@@ -346,11 +507,43 @@ export function hasNonSquarePieces(currentColor, formationPositions, row = 0, co
 
     // 递归检查下一个格子
     if (col < 5) {
-        return hasNonSquarePieces(currentColor, formationPositions, row, col + 1, board);
+        return hasNonSquarePieces2(currentColor, formationPositions, row, col + 1, board);
     } else if (row < 5) {
-        return hasNonSquarePieces(currentColor, formationPositions, row + 1, 0, board);
+        return hasNonSquarePieces2(currentColor, formationPositions, row + 1, 0, board);
     }
 
     // 所有格子检查完毕，返回 false
     return false;
+}
+
+function generateCacheKey(row, col, currentColor, board) {
+    // 将棋盘状态转换为字符串（或哈希值）作为缓存的一部分
+    const boardState = JSON.stringify(board);
+    return `${row},${col},${currentColor},${boardState}`;
+}
+
+export function getCachedFormationOrCheck(row, col, currentColor, board) {
+    const cacheKey = generateCacheKey(row, col, currentColor, board);
+    
+    // Try to get from cache
+    const cachedResult = cacheManager.get(cacheKey);
+    console.log('Trying to get cache for key:', cachedResult, cacheKey); // 调试日志
+    if (cachedResult !== undefined) {  // Change this line
+        return cachedResult;  // Now properly handles null values
+    }
+
+    // 调用原始函数并缓存结果
+    const result = checkFormation(row, col, currentColor, board);
+
+    return result;
+}
+
+export function checkFormationAndCache(row, col, currentColor, board) {
+    // 调用原始函数并缓存结果
+    const result = checkFormation(row, col, currentColor, board);
+    const cacheKey = generateCacheKey(row, col, currentColor, board);
+    console.log('Setting cache for key:', row, col); // 调试日志
+    cacheManager.set(cacheKey, result);
+
+    return result;
 }

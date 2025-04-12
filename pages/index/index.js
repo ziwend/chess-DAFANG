@@ -472,7 +472,7 @@ Page({
     },
 
     showGameOver: function (message) {
-        const tempFlag = false; // 临时标志，测试用
+        const tempFlag = true; // 临时标志，测试用
         if (this.data.isDebug && !tempFlag) {
             // 这里节省测试时间，正常还恢复对话框
             this.restartGame();
@@ -676,7 +676,7 @@ Page({
         const { targetRow, targetCol } = targetPosition;
         // 更新棋盘状态
         const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
-        const formationUpdate = this.checkFormation(targetRow, targetCol, currentColor, newBoard);
+        const formationUpdate = checkFormation(targetRow, targetCol, currentColor, newBoard);
 
         // 计算更新数据
         let updateData = {
@@ -684,6 +684,7 @@ Page({
             [`${currentColor}Count`]: this.data[`${currentColor}Count`] + 1,
         };
         if (formationUpdate) {
+            debugLog(this.data.isDebug, 'formationUpdate', formationUpdate);
             formationUpdate.formationPositions.forEach(pos => {
                 if (newBoard[pos[0]] && newBoard[pos[0]][pos[1]] && newBoard[pos[0]][pos[1]].isFormation === false) {
                     newBoard[pos[0]][pos[1]].isFormation = true;
@@ -754,21 +755,21 @@ Page({
         } = movePositions;
         // 更新棋盘
         const newBoard = this.updateBoard(color, startRow, startCol, targetRow, targetCol);
-        const formationUpdate = this.checkFormation(targetRow, targetCol, color, newBoard);
+        const formationUpdate = checkFormation(targetRow, targetCol, color, newBoard);
 
         let updateData = {
             board: newBoard,
 
         };
 
-        const formationUpdateDestroy = this.checkFormation(startRow, startCol, color, this.data.board);
+        const formationUpdateDestroy = checkFormation(startRow, startCol, color, this.data.board);
         if (formationUpdateDestroy) {
             if (formationUpdateDestroy.formationPositions && Array.isArray(formationUpdateDestroy.formationPositions)) {
                 formationUpdateDestroy.formationPositions.forEach(pos => {
                     if (newBoard[pos[0]][pos[1]]) {
                         // 检查该棋子是否仍然参与其他阵型
-                        const isStillInFormation = this.isStillInFormation(pos[0], pos[1], color, newBoard);
-                        if (!isStillInFormation) {
+                        const isStillInFormationFlag = isStillInFormation(pos[0], pos[1], color, newBoard);
+                        if (!isStillInFormationFlag) {
                             newBoard[pos[0]][pos[1]].isFormation = false;
                         }
                     }
@@ -946,13 +947,13 @@ Page({
             isAnimationInProgress: false
         };
 
-        const formationUpdateDestroy = this.checkFormation(row, col, color, this.data.board);
+        const formationUpdateDestroy = checkFormation(row, col, color, this.data.board);
         // 移除棋子后处理阵型状态
         if (formationUpdateDestroy && formationUpdateDestroy.formationPositions) {
             formationUpdateDestroy.formationPositions.forEach(pos => {
                 if (newBoard[pos[0]][pos[1]]) {
-                    const isStillInFormation = this.isStillInFormation(pos[0], pos[1], color, newBoard);
-                    if (!isStillInFormation) newBoard[pos[0]][pos[1]].isFormation = false;
+                    const isStillInFormationFlag = isStillInFormation(pos[0], pos[1], color, newBoard);
+                    if (!isStillInFormationFlag) newBoard[pos[0]][pos[1]].isFormation = false;
                 }
             });
         }
@@ -1021,14 +1022,6 @@ Page({
     },
     // -------------手动下棋控制逻辑结束--------------
     //----------------辅助函数开始----------------
-    checkFormation: function (row, col, currentColor, newBoard) {
-        return checkFormation(row, col, currentColor, newBoard);
-    },
-
-    isStillInFormation: function (row, col, currentColor, newBoard) {
-        return isStillInFormation(row, col, currentColor, newBoard);
-    },
-
     updateBoard: function (color, startRow, startCol, targetRow, targetCol) {
         return updateBoard(color, startRow, startCol, targetRow, targetCol, this.data.board);
     },

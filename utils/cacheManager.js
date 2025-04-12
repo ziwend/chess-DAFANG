@@ -1,5 +1,4 @@
-import { CACHE } from './formationCache.js'; // 引入 CACHE 常量
-import { DIRECTIONS, CONFIG } from './gameConstants.js';
+import { CONFIG } from './gameConstants.js';
 import { debugLog } from './historyUtils.js';
 
 class LRUCache {
@@ -34,18 +33,6 @@ class LRUCache {
     }
 
     set(key, value) {
-        
-        // Check for shorter keys with same value
-        for (const [existingKey, existingValue] of this.cache.entries()) {
-            if (key.includes(existingKey) &&
-                JSON.stringify(existingValue) === JSON.stringify(value)) {
-                debugLog(false, `插入新的key=${key}，删除较短key=${existingKey}的重复value:`, existingValue);
-                this.cache.delete(existingKey);
-                this.stats.deletions++;
-                // break; // Only delete the first matching shorter key
-            }
-        }
-
         if (this.cache.has(key)) {
             this.cache.delete(key);
             this.stats.deletions++;
@@ -55,7 +42,7 @@ class LRUCache {
             const firstKey = this.cache.keys().next().value;
             this.cache.delete(firstKey);
             this.stats.deletions++;
-            debugLog(CONFIG.DEBUG, `插入新的key=${key}删除最久未使用的项${firstKey}`, value);
+            // debugLog(CONFIG.DEBUG, `插入新的key=${key}删除最久未使用的项${firstKey}`, value);
         }
 
         this.cache.set(key, value);
@@ -77,52 +64,11 @@ class LRUCache {
 
 class CacheManager {
     constructor() {
-        this.lruCache = new LRUCache(20000); // 限制缓存大小
+        this.lruCache = new LRUCache(CONFIG.FORMATION_CHACE_SIZE); // 限制缓存大小
         this.presetCachePath = `${wx.env.USER_DATA_PATH}/preset-cache_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-        this.initCache();
+        //this.initCache();
     }
 
-    initCache() {
-        try {
-            // 加载 CACHE 常量中的数据
-            Object.entries(CACHE).forEach(([key, value]) => {
-                this.lruCache.set(key, value);
-            });
-        } catch (error) {
-            console.error('Error initializing cache:', error);
-        }
-    }
-
-    generateKey(row, col, currentColor, board) {
-        const visited = new Set(); // 同时用作访问记录和收集坐标
-
-        const findConnectedPieces = (r, c) => {
-            const posKey = `${r}${c}`;
-            if (visited.has(posKey)) return;
-
-            visited.add(posKey);
-
-            // Check each neighboring position
-            for (const [dx, dy] of DIRECTIONS.NEIGHBORS) {
-                const newRow = r + dx;
-                const newCol = c + dy;
-
-                // Check bounds and piece validity
-                if (newRow >= 0 && newRow < board.length &&
-                    newCol >= 0 && newCol < board[0].length &&
-                    board[newRow][newCol]?.color === currentColor) {
-
-                    findConnectedPieces(newRow, newCol);
-                }
-            }
-        };
-
-        // Start DFS from input position
-        findConnectedPieces(row, col);
-
-        // 将visited集合转换为数组并排序，确保生成的key是稳定的
-        return Array.from(visited).join('');
-    }
     getAllKeys() {
         return Array.from(this.lruCache.cache.keys());
     }
@@ -151,28 +97,6 @@ class CacheManager {
     saveToStorage() {
         // After some cache operations
         this.printStats();
-
-        try {
-            // Get all keys and sort them
-            const sortedKeys = this.getAllKeys().sort();
-
-            // Create array of [key, value] pairs
-            const sortedEntries = sortedKeys.map(key => [
-                key,
-                this.lruCache.get(key)
-            ]);
-
-            // Convert to object and serialize
-            const jsonData = JSON.stringify(Object.fromEntries(sortedEntries));
-
-            // 直接写入文件
-            const fs = wx.getFileSystemManager();
-            fs.writeFileSync(this.presetCachePath, jsonData, 'utf-8');
-            debugLog(CONFIG.DEBUG, 'Cache exported to preset file successfully', this.presetCachePath, sortedEntries.length);
-            
-        } catch (error) {
-            console.error('Error exporting cache to preset file:', error);
-        }
     }
 
 }

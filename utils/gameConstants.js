@@ -1,5 +1,7 @@
 // 游戏常量定义
 
+import { FORMATION_POSITIONS } from "./formationPositions";
+
 // 方向常量
 export const DIRECTIONS = {
     ADJACENT: [
@@ -110,5 +112,13 @@ export const INIT_MESG = "点击中间按钮，从黑方开始轮流布子";
 
 export const CONFIG = {
     DEBUG: true,
+    FORMATION_CHACE_SIZE: 50,
+    PLAYERS: ['black', 'white'],
+    INIT_MESG: "点击中间按钮，从黑方开始轮流布子",
+    GAME_PHASES: {
+        PLACING: 'placing',
+        MOVING: 'moving',
+        REMOVING: 'removing'
+    }
     // 其他全局配置...
 };
