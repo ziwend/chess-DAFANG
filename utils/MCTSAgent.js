@@ -1,5 +1,6 @@
 // MCTSAgent.js
-
+import { CONFIG } from "./gameConstants";
+import { debugLog } from "./historyUtils";
 export class MCTSAgent {
     constructor(config = {}) {
         this.simulations = config.simulations || 100;
@@ -9,17 +10,66 @@ export class MCTSAgent {
     /**
      * 决策函数 - 给出最佳落子位置
      */
-    getBestPlace(currentColor, opponentColor, possiblePositions, tempBoard) {
+    getBestPlace(currentColor, opponentColor, possiblePositions, tempBoard, evaluatePositionsFn) {
+
+        const finalPositions = [];
+        possiblePositions.forEach(position => {
+            // 递归检查下一层
+            this.runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn);
+        });
 
         return null; // 这里需要实现评估函数来选择最佳落子位置
     }
 
-    getBestMove(currentColor, opponentColor, possiblePositions, tempBoard ) {
+    getBestMove(currentColor, opponentColor, possiblePositions, tempBoard) {
 
-        return this.runMCTS(tempBoard, currentColor, opponentColor, possiblePositions);
+        return this.runMCTS2(tempBoard, currentColor, opponentColor, possiblePositions);
     }
 
-    runMCTS(tempBoard, currentColor, opponentColor, candidatePositions) {
+    runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn) {
+        // 其他棋子
+        let availablePositions = new Set();
+        this.applyPlace(tempBoard, position, currentColor);
+        let player = currentColor;
+        let other = opponentColor;
+        // 交换选手
+        [player, other] = [other, player];
+        // 放一个棋子后，模拟对方也放一个棋子, 假设己方放置一颗棋子后还差一颗就会形成阵型了，则对方一定会去封堵这个
+        let { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(tempBoard, player, other, availablePositions);
+        // 此种场景bestOpponentPosition一定有值，落子
+        if (bestSelfPosition) {
+            this.applyPlace(tempBoard, bestSelfPosition, player);
+            // 交换选手
+            [player, other] = [other, player];
+            debugLog(CONFIG.DEBUG, "bestSelfPostion", bestSelfPosition, player);
+            // 放一个棋子后，模拟对方也放一个棋子, 假设己方放置一颗棋子后还差一颗就会形成阵型了，则对方一定会去封堵这个
+            this.unApplyPlace(tempBoard, bestSelfPosition);
+        } else {
+            if (bestOpponentPosition) {
+                this.applyPlace(tempBoard, bestOpponentPosition, player);
+                // 交换选手
+                [player, other] = [other, player];
+                debugLog(CONFIG.DEBUG, "bestOpponentPosition", bestOpponentPosition, player)
+                // 放一个棋子后，模拟对方也放一个棋子, 假设己方放置一颗棋子后还差一颗就会形成阵型了，则对方一定会去封堵这个
+                this.unApplyPlace(tempBoard, bestOpponentPosition);
+            } else {
+                // availablePositions周边空位肯定有值
+                const possible = Array.from(availablePositions).map(p => JSON.parse(p));
+
+                const pos = this.pickRandom(possible);
+                this.applyPlace(tempBoard, pos, player);
+                // 交换选手
+                [player, other] = [other, player];
+                debugLog(CONFIG.DEBUG, "pickRandom", pos, player)
+                this.unApplyPlace(tempBoard, pos);
+            }
+        }
+
+        this.unApplyPlace(tempBoard, position);
+    }
+
+    runMCTS2(tempBoard, currentColor, opponentColor, candidatePositions) {
+
         const stats = {};
 
         for (let i = 0; i < this.simulations; i++) {
@@ -66,13 +116,24 @@ export class MCTSAgent {
             const move = this.pickRandom(possible);
             this.applyMove(board, move, player);
 
+            // 交换选手
             [player, other] = [other, player];
             turn++;
         }
 
         return this.estimateWinner(board);
     }
-
+    applyPlace(board, pos, color) {
+        const [row, col] = pos;
+        board[row][col] = {
+            color,
+            isFormation: false
+        };
+    }
+    unApplyPlace(board, pos) {
+        const [row, col] = pos;
+        board[row][col] = null;
+    }
     applyMove(board, pos, color) {
         const [row, col] = pos;
         board[row][col] = {

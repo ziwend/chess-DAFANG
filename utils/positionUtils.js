@@ -34,7 +34,7 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
     // 其他棋子
     let availablePositions = new Set();
     const finalPositions = [];
-    let { bestSelfPosition, bestOpponentPosition } = evaluatePositions(board, currentColor, opponentColor, availablePositions, data);
+    let { bestSelfPosition, bestOpponentPosition } = evaluatePositions(board, currentColor, opponentColor, availablePositions);
 
     // 1、优先判断放置在己方棋子周围是否会组成阵型，这样做的前提是该次落子不是奖励的机会,因为奖励的棋子形成的阵型不再给奖励
     if (bestSelfPosition && !extraMoves > 0) {
@@ -64,7 +64,8 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
         currentColor,
         opponentColor,
         uniquePositions,
-        tempBoard
+        tempBoard,
+        evaluatePositions
     );
 
     if (bestPlace) {
@@ -141,7 +142,7 @@ function getLastPosition(board) {
     }
 }
 
-function evaluatePositions(tempBoard, currentColor, opponentColor, availablePositions, data) {
+function evaluatePositions(tempBoard, currentColor, opponentColor, availablePositions) {
     let maxSelfExtraMoves = 0;
     let maxOpponentExtraMoves = 0;
     let bestSelfPosition = null;
@@ -149,7 +150,7 @@ function evaluatePositions(tempBoard, currentColor, opponentColor, availablePosi
 
     for (let row = 0; row < tempBoard.length; row++) {
         for (let col = 0; col < tempBoard[row].length; col++) {
-            const result = getBestFormationPosition(row, col, tempBoard, currentColor, opponentColor, availablePositions, data);
+            const result = getBestFormationPosition(row, col, tempBoard, currentColor, opponentColor, availablePositions);
             if (result.bestSelfPosition) {
                 if (maxSelfExtraMoves < result.maxSelfExtraMoves) {
                     maxSelfExtraMoves = result.maxSelfExtraMoves;
@@ -173,7 +174,7 @@ function evaluatePositions(tempBoard, currentColor, opponentColor, availablePosi
     }
     return { bestSelfPosition, bestOpponentPosition };
 }
-function getBestFormationPosition(row, col, currentBoard, currentColor, opponentColor, availablePositions, gameState) {
+function getBestFormationPosition(row, col, currentBoard, currentColor, opponentColor, availablePositions) {
     let bestSelfPosition = null;
     let bestOpponentPosition = null;
     let maxSelfExtraMoves = 0;
