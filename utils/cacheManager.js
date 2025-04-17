@@ -77,7 +77,7 @@ class LRUCache {
 
 class CacheManager {
     constructor() {
-        this.lruCache = new LRUCache(20000); // 限制缓存大小
+        this.lruCache = new LRUCache(200); // 限制缓存大小
         this.presetCachePath = `${wx.env.USER_DATA_PATH}/preset-cache_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
         this.initCache();
     }

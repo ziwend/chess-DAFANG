@@ -431,6 +431,7 @@ Page({
                     this.showGameOver(message);
                 }
                 cacheManager.saveToStorage(); // 保存缓存到本地存储
+                debugLog(this.data.isDebug, "boardRectCache", this.data.boardRectCache);
                 return winner; // 游戏结束，返回winner             
             }
         }
