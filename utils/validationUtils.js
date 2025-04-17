@@ -44,11 +44,14 @@ function canRemovePiece(targetPosition, opponentColor, board) {
     // 如果棋盘上有不在阵型中的棋子，优先移除它们
     if (hasNonFormationPieces(opponentColor, board)) return false;
 
-    // 检查是否处于大方阵型
-    const squareResult = checkSquare(targetPosition.targetRow, targetPosition.targetCol, opponentColor, board);
-    if (squareResult.squareCount > 0) {
+    // 检查是否处于大方阵型targetPosition.targetRow, targetPosition.targetCol, 
+    const formationData = FORMATION_POSITIONS.get(`${targetPosition.targetRow}${targetPosition.targetCol}`);
+    
+        // 检查 square（大方）
+    const squareResult = checkSquare(opponentColor, board, formationData.square);
+    if (squareResult) {
         const formationPositions = squareResult.formationPositions;
-        if (hasNonSquarePieces(opponentColor, formationPositions, 0, 0, board)) return false;
+        if (hasNonSquarePieces(opponentColor, formationPositions,board)) return false;
     }
 
     return true;
