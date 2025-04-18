@@ -4,6 +4,9 @@ import { debugLog } from "./historyUtils";
 
 export class MCTSAgent {
     constructor(config = {}) {
+        // 修改构造函数，添加最小和最大模拟次数
+        this.minSimulations = config.minSimulations || 2;
+        this.maxSimulations = config.maxSimulations || 50;
         this.simulations = config.simulations || 50;
         this.maxDepth = config.maxDepth || CONFIG.MAX_PIECES_COUNT;
         this.usedPositions = new Map(); // 添加位置使用记录
