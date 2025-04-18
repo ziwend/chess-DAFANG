@@ -83,7 +83,7 @@ class CacheManager {
 
     printStats() {
         const stats = this.lruCache.getStats();
-        console.log(`Cache Performance:
+        debugLog(CONFIG.DEBUG, `Cache Performance:
 - Cache Size: ${stats.cacheSize}
 - Total Requests: ${stats.totalRequests}
 - Cache Hits: ${stats.hits}
@@ -91,7 +91,7 @@ class CacheManager {
 - Hit Rate: ${stats.hitRate}
 - Sets: ${stats.sets}
 - Deletions: ${stats.deletions}
-`);
+`, this.getAllKeys())
     }
 
     saveToStorage() {

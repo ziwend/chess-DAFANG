@@ -1,12 +1,12 @@
 import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces } from './formationChecker.js';
 import { deepCopy,canPlace } from './boardUtils.js';
-import { GAME_PHASES } from './gameConstants.js';
+import { CONFIG } from './gameConstants.js';
 
 export function validatePosition(position, type, color, board) {
     const validations = {
-        [GAME_PHASES.PLACING]: () => isValidPlacement(position, board),
-        [GAME_PHASES.MOVING]: () => isValidMovement(position, board),
-        [GAME_PHASES.REMOVING]: () => isValidRemoval(color, position, board)
+        [CONFIG.GAME_PHASES.PLACING]: () => isValidPlacement(position, board),
+        [CONFIG.GAME_PHASES.MOVING]: () => isValidMovement(position, board),
+        [CONFIG.GAME_PHASES.REMOVING]: () => isValidRemoval(color, position, board)
     };
 
     return validations[type] ? validations[type]() : false;

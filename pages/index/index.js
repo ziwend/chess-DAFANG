@@ -1,8 +1,8 @@
 // 导入游戏常量
-import { PLAYERS, GAMEHISTORY, NUMBERS, INITIAL_BOARD, GAME_PHASES, INIT_MESG, CONFIG } from '../../utils/gameConstants.js';
+import { GAMEHISTORY, CONFIG } from '../../utils/gameConstants.js';
 // 导入 棋手配置管理函数
 import { loadPlayerConfig } from '../../utils/playerConfigManager.js';
-import { isStillInFormation, checkFormation } from '../../utils/formationChecker.js';
+import { checkFormation } from '../../utils/formationChecker.js';
 import { saveUserMessageToHistory, saveAssistantMessageToHistory, exportGameHistory, debugLog } from '../../utils/historyUtils.js';
 import { hasValidMoves, updateBoard, isMaxPiecesCount, isBoardWillFull } from '../../utils/boardUtils.js';
 import { handleAITurn } from '../../utils/aiUtils.js';
@@ -14,10 +14,9 @@ import { cacheManager } from '../../utils/cacheManager.js';
 // 游戏主页面逻辑
 Page({
     data: {
-        players: PLAYERS,        // 玩家颜色
-        message: INIT_MESG,        // 游戏状态提示           
+        players: CONFIG.PLAYERS,        // 玩家颜色
+        message: CONFIG.INIT_MESG,        // 游戏状态提示           
         gameHistory: [],
-        isDebug: true,
         lastRandomDecision: null,  // 新增：存储上一次的随机决策
         isGameStarted: false,
         isGameOver: false,
@@ -77,7 +76,7 @@ Page({
                 }
             },
             fail: res => {
-                debugLog(this.data.isDebug, '用户取消了菜单', res);
+                debugLog(CONFIG.DEBUG, '用户取消了菜单', res);
             }
         });
     },
@@ -213,9 +212,13 @@ Page({
         // 获取每日任务
         const dailyTasks = RewardManager.getDailyTasks();
 
+        // 加载缓存的棋盘位置信息
+        const boardRectCache = wx.getStorageSync('boardRectCache');
+
         this.setData({
             playerStats,
-            dailyTasks
+            dailyTasks,
+            boardRectCache
         });
     },
 
@@ -227,13 +230,13 @@ Page({
 
     startGame: function () {
         const updateData = {
-            board: deepCopy(INITIAL_BOARD),
+            board: deepCopy(CONFIG.INITIAL_BOARD),
             currentPlayer: 0,            // 重置当前玩家为黑方
             dragPiece: null,            // 当前拖动的棋子信息
             blackCount: 0,            // 重置黑方棋子数量
             whiteCount: 0,            // 重置白方棋子数量
             extraMoves: 0,            // 重置额外移动次数
-            gamePhase: GAME_PHASES.PLACING,            // 重置游戏阶段为放置阶段，游戏阶段：'placing'（布子）, 'moving'（移动）, 'removing'（吃子）
+            gamePhase: CONFIG.GAME_PHASES.PLACING,            // 重置游戏阶段为放置阶段，游戏阶段：'placing'（布子）, 'moving'（移动）, 'removing'（吃子）
             isGameStarted: true,
             isGameOver: false,            // 新增游戏结束标志 
             message: '',            // 清空状态栏提示        
@@ -255,7 +258,7 @@ Page({
             this.updateElapsedTime();
         }, 1000);
         updateData.timer = timer;
-        if (this.data.isDebug) {
+        if (CONFIG.DEBUG) {
             // 添加用户消息到历史记录
             const userMessage = this.saveUserMessageToHistory("placing", "black", GAMEHISTORY, '');
             updateData.gameHistory = userMessage.gameHistory;
@@ -265,7 +268,7 @@ Page({
         this.setData(updateData);
 
         // TODO 判断一下如果当前config，黑色有配置，则当前AI
-        this.handleAITurn(GAME_PHASES.PLACING, PLAYERS[this.data.currentPlayer]);
+        this.handleAITurn(CONFIG.GAME_PHASES.PLACING, this.data.players[this.data.currentPlayer]);
         this.showMessage("开局布子");
     },
 
@@ -300,21 +303,21 @@ Page({
         const player = currentColor === 'black' ? '黑方' : '白方';
         // 还要修改第二个condition，当获得了额外移动次数，是没有切换棋手的，还是当前方
         const conditions = [{
-            check: () => this.data[`${currentColor}Count`] < NUMBERS.MIN_PIECES_TO_WIN,
+            check: () => this.data[`${currentColor}Count`] < CONFIG.MIN_PIECES_TO_WIN,
             feedback: `当前棋手的棋子少于3颗，对方${opponent}获胜`,
             winnerColor: opponentColor,
             losserColor: currentColor,
             winner: `${opponent}`
         },
         {
-            check: () => this.data.extraMoves > 0 && this.data.extraMoves + NUMBERS.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
+            check: () => this.data.extraMoves > 0 && this.data.extraMoves + CONFIG.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
             feedback: `当前棋手吃子后，对方剩余棋子少于3颗，己方${player}获胜`,
             winnerColor: currentColor,
             losserColor: opponentColor,
             winner: `${player}`
         },
         {
-            check: () => this.data.gamePhase === GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
+            check: () => this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
             feedback: `当前棋手无棋子可以移动，对方${opponent}获胜`,
             winnerColor: opponentColor,
             losserColor: currentColor,
@@ -425,13 +428,13 @@ Page({
                         dailyTasks: tasks
                     });
                 }
-                if (message === null) {
+                if (!message) {
                     message = `游戏结束，获胜方: ${winner}`;
-                    debugLog(this.data.isDebug, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
+                    debugLog(CONFIG.DEBUG, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
                     this.showGameOver(message);
                 }
                 cacheManager.saveToStorage(); // 保存缓存到本地存储
-                debugLog(this.data.isDebug, "boardRectCache", this.data.boardRectCache);
+                debugLog(CONFIG.DEBUG, "boardRectCache", this.data.boardRectCache);
                 return winner; // 游戏结束，返回winner             
             }
         }
@@ -474,7 +477,7 @@ Page({
 
     showGameOver: function (message) {
         const tempFlag = true; // 临时标志，测试用
-        if (this.data.isDebug && !tempFlag) {
+        if (CONFIG.DEBUG && !tempFlag) {
             // 这里节省测试时间，正常还恢复对话框
             this.restartGame();
         } else {
@@ -513,7 +516,7 @@ Page({
     // -------------手动下棋控制逻辑开始--------------
     handleDragStart: function (e) {
         // 非移动阶段不处理
-        if (this.data.gamePhase !== GAME_PHASES.MOVING) {
+        if (this.data.gamePhase !== CONFIG.GAME_PHASES.MOVING) {
             return;
         }
         const {
@@ -551,7 +554,7 @@ Page({
             return;
         }
         // 判断一下移动阶段是否有效
-        if (this.data.gamePhase === GAME_PHASES.MOVING && !this.data.dragPiece) {
+        if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.data.dragPiece) {
             this.showMessage('请选中要移动的棋子拖动');
             return;
         }
@@ -605,10 +608,10 @@ Page({
         const targetPosition = { targetRow, targetCol };
         // 处理不同游戏阶段
         switch (this.data.gamePhase) {
-            case GAME_PHASES.PLACING:
+            case CONFIG.GAME_PHASES.PLACING:
                 this.handlePlace(currentColor, targetPosition);
                 break;
-            case GAME_PHASES.MOVING:
+            case CONFIG.GAME_PHASES.MOVING:
                 const {
                     startRow,
                     startCol
@@ -618,7 +621,7 @@ Page({
                 };
                 this.handleMove(currentColor, movePositions);
                 break;
-            case GAME_PHASES.REMOVING:
+            case CONFIG.GAME_PHASES.REMOVING:
                 this.handleRemove(currentColor, targetPosition);
                 break;
             default:
@@ -631,9 +634,12 @@ Page({
         if (!this.data.boardRectCache) {
             const query = wx.createSelectorQuery();
             query.select('.board').boundingClientRect();
+            debugLog(CONFIG.DEBUG, 'getBoardPosition', query);
             return new Promise((resolve) => {
                 query.exec((res) => {
                     if (res && res[0]) {
+                        // 保存到Storage和data中
+                        wx.setStorageSync('boardRectCache', res[0]);
                         this.setData({ boardRectCache: res[0] });
                         const boardX = touch.clientX - res[0].left;
                         const boardY = touch.clientY - res[0].top;
@@ -685,12 +691,7 @@ Page({
             [`${currentColor}Count`]: this.data[`${currentColor}Count`] + 1,
         };
         if (formationUpdate) {
-            debugLog(this.data.isDebug, 'formationUpdate', formationUpdate);
-            formationUpdate.formationPositions.forEach(pos => {
-                if (newBoard[pos[0]] && newBoard[pos[0]][pos[1]] && newBoard[pos[0]][pos[1]].isFormation === false) {
-                    newBoard[pos[0]][pos[1]].isFormation = true;
-                }
-            });
+            this.updateFormationStatus(formationUpdate, newBoard);
 
             // 显示提示
             this.showMessage('形成了' + formationUpdate.formationType);
@@ -719,10 +720,10 @@ Page({
 
         //更新place记录
         const decision = {
-            action: GAME_PHASES.PLACING,
+            action: CONFIG.GAME_PHASES.PLACING,
             position: [targetRow, targetCol]
         };
-        if (this.data.isDebug) {
+        if (CONFIG.DEBUG) {
             updateData.gameHistory = [...this.data.gameHistory, {
                 role: "assistant",
                 content: JSON.stringify(decision)
@@ -764,26 +765,12 @@ Page({
         };
 
         const formationUpdateDestroy = checkFormation(startRow, startCol, color, this.data.board);
-        if (formationUpdateDestroy) {
-            if (formationUpdateDestroy.formationPositions && Array.isArray(formationUpdateDestroy.formationPositions)) {
-                formationUpdateDestroy.formationPositions.forEach(pos => {
-                    if (newBoard[pos[0]][pos[1]]) {
-                        // 检查该棋子是否仍然参与其他阵型
-                        const isStillInFormationFlag = isStillInFormation(pos[0], pos[1], color, newBoard);
-                        if (!isStillInFormationFlag) {
-                            newBoard[pos[0]][pos[1]].isFormation = false;
-                        }
-                    }
-                });
-            }
-        }
+
+        this.handleDestroyedFormation(formationUpdateDestroy, newBoard, color);
+
 
         if (formationUpdate) {
-            formationUpdate.formationPositions.forEach(pos => {
-                if (newBoard[pos[0]] && newBoard[pos[0]][pos[1]] && newBoard[pos[0]][pos[1]].isFormation === false) {
-                    newBoard[pos[0]][pos[1]].isFormation = true;
-                }
-            });
+            this.updateFormationStatus(formationUpdate, newBoard);
 
             // 显示提示
             this.showMessage('形成' + formationUpdate.formationType);
@@ -815,13 +802,13 @@ Page({
 
         // 直接保存 decision
         const decision = {
-            action: GAME_PHASES.MOVING,
+            action: CONFIG.GAME_PHASES.MOVING,
             position: [startRow, startCol],
             newPosition: [targetRow, targetCol]
         };
 
         const currentHistory = Array.isArray(this.data.gameHistory) ? this.data.gameHistory : [];
-        if (this.data.isDebug) {
+        if (CONFIG.DEBUG) {
             updateData.gameHistory = [...currentHistory, {
                 role: "assistant",
                 content: JSON.stringify(decision)
@@ -881,18 +868,18 @@ Page({
             },
             isAnimationInProgress: false
         };
-        if (this.data.gamePhase === GAME_PHASES.MOVING) {
+        if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING) {
             // 先检查游戏是否结束
             const winner = await this.checkGameOver();
             if (winner) {
                 return;
             }
             if (this.data.extraMoves > 0) {
-                updateData.gamePhase = GAME_PHASES.REMOVING;
+                updateData.gamePhase = CONFIG.GAME_PHASES.REMOVING;
             } else {
-                updateData.gamePhase = GAME_PHASES.MOVING;
+                updateData.gamePhase = CONFIG.GAME_PHASES.MOVING;
             }
-            if (this.data.isDebug) {
+            if (CONFIG.DEBUG) {
                 const userMessage = this.saveUserMessageToHistory(updateData.gamePhase, this.data.players[this.data.currentPlayer], this.data.gameHistory, this.data.lastActionResult);
                 updateData.gameHistory = userMessage.gameHistory;
             }
@@ -901,17 +888,17 @@ Page({
             this.setData(updateData);
 
             this.handleAITurn(this.data.gamePhase, this.data.players[this.data.currentPlayer]);
-        } else if (this.data.gamePhase === GAME_PHASES.PLACING) {
+        } else if (this.data.gamePhase === CONFIG.GAME_PHASES.PLACING) {
             // 放置最后一颗棋子后
             // 检查棋盘是否已满
             if (this.isMaxPiecesCount()) {
                 this.showMessage("棋盘已满，开始提子！");
-                updateData.gamePhase = GAME_PHASES.REMOVING;
+                updateData.gamePhase = CONFIG.GAME_PHASES.REMOVING;
             } else {
-                updateData.gamePhase = GAME_PHASES.PLACING;
+                updateData.gamePhase = CONFIG.GAME_PHASES.PLACING;
             }
 
-            if (this.data.isDebug) {
+            if (CONFIG.DEBUG) {
                 // 增加一下操作的日志 
                 const userMessage = this.saveUserMessageToHistory(updateData.gamePhase, this.data.players[this.data.currentPlayer], this.data.gameHistory, this.data.lastActionResult);
                 updateData.gameHistory = userMessage.gameHistory;
@@ -949,22 +936,16 @@ Page({
         };
 
         const formationUpdateDestroy = checkFormation(row, col, color, this.data.board);
+
         // 移除棋子后处理阵型状态
-        if (formationUpdateDestroy && formationUpdateDestroy.formationPositions) {
-            formationUpdateDestroy.formationPositions.forEach(pos => {
-                if (newBoard[pos[0]][pos[1]]) {
-                    const isStillInFormationFlag = isStillInFormation(pos[0], pos[1], color, newBoard);
-                    if (!isStillInFormationFlag) newBoard[pos[0]][pos[1]].isFormation = false;
-                }
-            });
-        }
+        this.handleDestroyedFormation(formationUpdateDestroy, newBoard, color);
 
         if (!this.data.isExchangeRemoving) { // 修改之后存在数字和message不同步的问题，如果把extramoves计数移动到这里就存在连续删除2个只计数一次的问题；
             if (this.data.extraMoves === 1) {
                 updateData = {
                     ...updateData,
                     currentPlayer: 1 - this.data.currentPlayer,
-                    gamePhase: GAME_PHASES.MOVING,
+                    gamePhase: CONFIG.GAME_PHASES.MOVING,
                     message: `请${this.data.currentPlayer === 1 ? '黑方' : '白方'}移动棋子`,
                     extraMoves: this.data.extraMoves - 1
                 };
@@ -985,10 +966,10 @@ Page({
             };
         }
 
-        if (this.data.isDebug) {
+        if (CONFIG.DEBUG) {
             // 直接保存 decision
             const decision = {
-                action: GAME_PHASES.REMOVING,
+                action: CONFIG.GAME_PHASES.REMOVING,
                 position: [row, col]
             };
             updateData.gameHistory = [...this.data.gameHistory, {
@@ -1004,7 +985,7 @@ Page({
             return;
         }
 
-        if (this.data.isDebug) {
+        if (CONFIG.DEBUG) {
             // 添加用户消息到历史记录
             const userMessage = this.saveUserMessageToHistory(
                 this.data.gamePhase,
@@ -1026,6 +1007,30 @@ Page({
     updateBoard: function (color, startRow, startCol, targetRow, targetCol) {
         return updateBoard(color, startRow, startCol, targetRow, targetCol, this.data.board);
     },
+    // 新增工具函数
+    updateFormationStatus: function (formationUpdate, board) {
+        formationUpdate.formationPositions.forEach(pos => {
+            const [row, col] = pos;
+            if (!board[row][col].isFormation) {
+                board[row][col].isFormation = true;
+            }
+        });
+    },
+
+    // 新增: 检查和更新被破坏的阵型
+    handleDestroyedFormation: function (formationUpdateDestroy, newBoard, color) {
+        if (formationUpdateDestroy) {
+            formationUpdateDestroy.formationPositions.forEach(pos => {
+                const [row, col] = pos;
+                if (newBoard[row][col]) {
+                    const isStillInFormationFlag = checkFormation(row, col, color, newBoard);
+                    if (!isStillInFormationFlag) {
+                        newBoard[row][col].isFormation = false;
+                    }
+                }
+            });
+        }
+    },
 
     showMessage: function (message, icon = 'none', duration = 1500) {
         wx.showToast({
@@ -1042,15 +1047,15 @@ Page({
     // 处理 AI 决策
     processAIDecision: function (phase, aicolor, decision) {
         const actions = {
-            [GAME_PHASES.PLACING]: () => {
+            [CONFIG.GAME_PHASES.PLACING]: () => {
                 const targetPostion = {
                     targetRow: decision.position[0],
                     targetCol: decision.position[1]
                 }
                 this.handlePlaceDrop(aicolor, targetPostion);
             },
-            [GAME_PHASES.REMOVING]: () => this.setFlashPiece(decision.position[0], decision.position[1]),
-            [GAME_PHASES.MOVING]: () => {
+            [CONFIG.GAME_PHASES.REMOVING]: () => this.setFlashPiece(decision.position[0], decision.position[1]),
+            [CONFIG.GAME_PHASES.MOVING]: () => {
                 const movePositions = {
                     startRow: decision.position[0],
                     startCol: decision.position[1],
@@ -1152,19 +1157,19 @@ Page({
     revertAction: function (assistantAction, board, updateData, playerColor) {
         const { action, position, newPosition } = assistantAction;
 
-        if (action === GAME_PHASES.PLACING) {
+        if (action === CONFIG.GAME_PHASES.PLACING) {
             const [row, col] = position;
             const color = board[row][col].color;
             board[row][col] = null; // 移除最近放置的棋子            
             updateData[`${color}Count`] = (updateData[`${color}Count`] || this.data[`${color}Count`]) - 1; // 减少棋子计数
-            debugLog(this.data.isDebug, '撤销放置操作', updateData.blackCount, updateData.whiteCount);
-        } else if (action === GAME_PHASES.MOVING) {
+            debugLog(CONFIG.DEBUG, '撤销放置操作', updateData.blackCount, updateData.whiteCount);
+        } else if (action === CONFIG.GAME_PHASES.MOVING) {
             // 撤销移动操作
             const [startRow, startCol] = position;
             const [targetRow, targetCol] = newPosition;
             board[startRow][startCol] = board[targetRow][targetCol]; // 将棋子移回起始位置
             board[targetRow][targetCol] = null; // 清空目标位置
-        } else if (action === GAME_PHASES.REMOVING) {
+        } else if (action === CONFIG.GAME_PHASES.REMOVING) {
             // 撤销移除操作
             const [row, col] = position;
             // 恢复被移除的棋子

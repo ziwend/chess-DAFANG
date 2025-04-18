@@ -1,6 +1,7 @@
 // MCTSAgent.js
 import { CONFIG } from "./gameConstants";
 import { debugLog } from "./historyUtils";
+
 export class MCTSAgent {
     constructor(config = {}) {
         this.simulations = config.simulations || 100;
@@ -8,121 +9,91 @@ export class MCTSAgent {
     }
 
     /**
-     * 决策函数 - 给出最佳落子位置
+     * 获取最佳落子位置
+     * @param {string} currentColor 当前玩家颜色
+     * @param {string} opponentColor 对手颜色
+     * @param {Array} possiblePositions 所有可能的落子位置
+     * @param {Array} tempBoard 当前棋盘状态
+     * @param {Function} evaluatePositionsFn 用于评估局势的方法
+     * @returns {Array|null} 最佳位置或null
      */
     getBestPlace(currentColor, opponentColor, possiblePositions, tempBoard, evaluatePositionsFn) {
+        let bestScore = -Infinity;
+        let bestMove = null;
 
-        const finalPositions = [];
-        possiblePositions.forEach(position => {
-            // 递归检查下一层
-            this.runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn);
-        });
-
-        return null; // 这里需要实现评估函数来选择最佳落子位置
+        for (const position of possiblePositions) {
+            const score = this.runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn);
+            debugLog(CONFIG.DEBUG, '模拟位置得分:', position, score);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = position;
+            }
+        }
+        debugLog(CONFIG.DEBUG, '最佳落子位置:', bestMove, '得分:', bestScore, currentColor);
+        return bestMove;
+        //return null; // only test
     }
 
-    getBestMove(currentColor, opponentColor, possiblePositions, tempBoard) {
-
-        return this.runMCTS2(tempBoard, currentColor, opponentColor, possiblePositions);
-    }
-
+    /**
+     * 针对某个落子位置运行一次MCTS模拟
+     * @param {Array} tempBoard 当前棋盘状态
+     * @param {string} currentColor 当前玩家颜色
+     * @param {string} opponentColor 对手颜色
+     * @param {Array} position 当前模拟的落子位置
+     * @param {Function} evaluatePositionsFn 用于评估局势的方法
+     * @returns {number} 模拟得分
+     */
     runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn) {
-        // 其他棋子
-        let availablePositions = new Set();
-        this.applyPlace(tempBoard, position, currentColor);
-        let player = currentColor;
-        let other = opponentColor;
-        // 交换选手
-        [player, other] = [other, player];
-        // 放一个棋子后，模拟对方也放一个棋子, 假设己方放置一颗棋子后还差一颗就会形成阵型了，则对方一定会去封堵这个
-        let { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(tempBoard, player, other, availablePositions);
-        // 此种场景bestOpponentPosition一定有值，落子
-        if (bestSelfPosition) {
-            this.applyPlace(tempBoard, bestSelfPosition, player);
-            // 交换选手
-            [player, other] = [other, player];
-            debugLog(CONFIG.DEBUG, "bestSelfPostion", bestSelfPosition, player);
-            // 放一个棋子后，模拟对方也放一个棋子, 假设己方放置一颗棋子后还差一颗就会形成阵型了，则对方一定会去封堵这个
-            this.unApplyPlace(tempBoard, bestSelfPosition);
-        } else {
-            if (bestOpponentPosition) {
-                this.applyPlace(tempBoard, bestOpponentPosition, player);
-                // 交换选手
-                [player, other] = [other, player];
-                debugLog(CONFIG.DEBUG, "bestOpponentPosition", bestOpponentPosition, player)
-                // 放一个棋子后，模拟对方也放一个棋子, 假设己方放置一颗棋子后还差一颗就会形成阵型了，则对方一定会去封堵这个
-                this.unApplyPlace(tempBoard, bestOpponentPosition);
-            } else {
-                // availablePositions周边空位肯定有值
-                const possible = Array.from(availablePositions).map(p => JSON.parse(p));
-
-                const pos = this.pickRandom(possible);
-                this.applyPlace(tempBoard, pos, player);
-                // 交换选手
-                [player, other] = [other, player];
-                debugLog(CONFIG.DEBUG, "pickRandom", pos, player)
-                this.unApplyPlace(tempBoard, pos);
-            }
-        }
-
-        this.unApplyPlace(tempBoard, position);
-    }
-
-    runMCTS2(tempBoard, currentColor, opponentColor, candidatePositions) {
-
-        const stats = {};
-
+        // 执行模拟
+        let wins = 0;
         for (let i = 0; i < this.simulations; i++) {
-            const pos = this.pickRandom(candidatePositions);
-            this.applyMove(tempBoard, pos, currentColor);
-
-            const winner = this.simulateGame(tempBoard, opponentColor, currentColor);
-
-            const key = `${pos[0]},${pos[1]}`;
-            if (!stats[key]) stats[key] = { wins: 0, visits: 0 };
-            if (winner === currentColor) stats[key].wins += 1;
-            stats[key].visits += 1;
+            const boardCopy = JSON.parse(JSON.stringify(tempBoard));
+            this.applyPlace(boardCopy, position, currentColor);
+            const winner = this.simulateGame(boardCopy, opponentColor, currentColor, evaluatePositionsFn);
+            if (winner === currentColor) wins++;
+            else if (winner === 'draw') wins += 0.5;
         }
-
-        let bestPos = null;
-        let bestWinRate = -1;
-
-        for (let pos of candidatePositions) {
-            const key = `${pos[0]},${pos[1]}`;
-            const { wins = 0, visits = 1 } = stats[key] || {};
-            const winRate = wins / visits;
-            if (winRate > bestWinRate) {
-                bestWinRate = winRate;
-                bestPos = pos;
-            }
-        }
-
-        return bestPos;
+        return wins;
     }
 
-    simulateGame(board, currentColor, opponentColor) {
+    /**
+     * 模拟游戏进行若干步，返回赢家
+     * @param {Array} board 当前棋盘
+     * @param {string} currentColor 当前玩家颜色
+     * @param {string} opponentColor 对手颜色
+     * @param {Function} evaluatePositionsFn 评估函数（需生成下一步可落子位置）
+     * @returns {string} 胜利者颜色或'draw'
+     */
+    simulateGame(board, currentColor, opponentColor, evaluatePositionsFn) {
         let turn = 0;
         let player = currentColor;
         let other = opponentColor;
 
-        const maxTurns = this.maxDepth;
-
-        while (turn < maxTurns) {
+        while (turn < this.maxDepth) {
             const availablePositions = new Set();
-            // TODO: 这里需要实现获取可用位置的逻辑
+            const { bestSelfPosition } = evaluatePositionsFn(board, player, other, availablePositions);
             const possible = Array.from(availablePositions).map(p => JSON.parse(p));
+
             if (possible.length === 0) break;
 
             const move = this.pickRandom(possible);
-            this.applyMove(board, move, player);
+            this.applyPlace(board, move, player);
 
-            // 交换选手
+            if (bestSelfPosition) return player;
+
             [player, other] = [other, player];
             turn++;
         }
 
         return this.estimateWinner(board);
     }
+
+    /**
+     * 在棋盘上放置棋子
+     * @param {Array} board 棋盘
+     * @param {Array} pos [row, col] 位置
+     * @param {string} color 玩家颜色
+     */
     applyPlace(board, pos, color) {
         const [row, col] = pos;
         board[row][col] = {
@@ -130,19 +101,23 @@ export class MCTSAgent {
             isFormation: false
         };
     }
+
+    /**
+     * 撤销棋盘上的某个落子
+     * @param {Array} board 棋盘
+     * @param {Array} pos [row, col] 位置
+     */
     unApplyPlace(board, pos) {
         const [row, col] = pos;
         board[row][col] = null;
     }
-    applyMove(board, pos, color) {
-        const [row, col] = pos;
-        board[row][col] = {
-            color,
-            isFormation: false
-        };
-    }
 
-    estimateWinner(board) { // 估计赢家,logic to determine the winner based on the board state
+    /**
+     * 根据棋盘当前状态估算赢家（用于平局判定）
+     * @param {Array} board 当前棋盘
+     * @returns {string} 胜者颜色或'draw'
+     */
+    estimateWinner(board) {
         let black = 0, white = 0;
         for (let row of board) {
             for (let cell of row) {
@@ -150,10 +125,16 @@ export class MCTSAgent {
                 if (cell?.color === 'white') white++;
             }
         }
-        return black > white ? 'black' : 'white';
+        return black > white ? 'black' : white > black ? 'white' : 'draw';
     }
 
+    /**
+     * 从数组中随机选择一个元素
+     * @param {Array} array 候选数组
+     * @returns {*} 随机选中的元素
+     */
     pickRandom(array) {
         return array[Math.floor(Math.random() * array.length)];
     }
 }
+

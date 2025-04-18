@@ -441,7 +441,7 @@ export function hasNonFormationPieces(opponentColor, board) {
     return false; // 没有找到不在阵型中的棋子
 }
 
-export function isStillInFormation(row, col, currentColor, newBoard) {
+function isStillInFormation(row, col, currentColor, newBoard) {
     const formationData = FORMATION_POSITIONS.get(`${row}${col}`);
     // 检查大方
     const squareResult = checkSquare(currentColor, newBoard, formationData.square);

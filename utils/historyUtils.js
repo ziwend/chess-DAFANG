@@ -1,4 +1,4 @@
-import { INITIAL_BOARD,CONFIG } from "./gameConstants";
+import { CONFIG } from "./gameConstants";
 
 export function saveUserMessageToHistory(phase, playerColor, updatedHistory, lastActionResult, board) {
     const boardState = getBoardState(board);
@@ -28,7 +28,7 @@ export function saveAssistantMessageToHistory(gameHistory, content) {
 // **获取当前棋盘状态**
 function getBoardState(board) {
     if (!board) {
-        board = INITIAL_BOARD;
+        board = CONFIG.INITIAL_BOARD;
     }
     return board.map(row => row.map(cell => cell ? {
         color: cell.color,

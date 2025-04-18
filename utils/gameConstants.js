@@ -1,7 +1,5 @@
 // 游戏常量定义
 
-import { FORMATION_POSITIONS } from "./formationPositions";
-
 // 方向常量
 export const DIRECTIONS = {
     ADJACENT: [
@@ -71,54 +69,37 @@ export const GAMEHISTORY = [{
         "其中\"newPosition\": [row,col]只有在对应action=moving时才需要，返回内容不得包含多余字符。"
 }];
 
-export const NUMBERS = {
-    MIN_PIECES_TO_WIN: 3,
-    MAX_PIECES_COUNT: 36,
-
-};
-
-export const INITIAL_BOARD = Array.from({ length: 6 }, () => new Array(6).fill(null));
-
-export const PLAYERS = ['black', 'white'];
-
-export const GAME_PHASES = {
-    PLACING: 'placing',
-    MOVING: 'moving',
-    REMOVING: 'removing'
-};
-
-export const DEFAULT_PLAYER_CONFIG = {
-    black: {
-        playerType: 'self',
-        difficulty: 'easy',
-        aiConfig: {
-            url: '',
-            model: '',
-            apiKey: ''
-          }
-    },
-    white: {
-        playerType: 'local',
-        difficulty: 'easy',
-        aiConfig: {
-            url: '',
-            model: '',
-            apiKey: ''
-          }
-    }
-};
-
-export const INIT_MESG = "点击中间按钮，从黑方开始轮流布子";
-
 export const CONFIG = {
     DEBUG: true,
     FORMATION_CHACE_SIZE: 50,
     PLAYERS: ['black', 'white'],
     INIT_MESG: "点击中间按钮，从黑方开始轮流布子",
+    INITIAL_BOARD: Array.from({ length: 6 }, () => new Array(6).fill(null)),
     GAME_PHASES: {
         PLACING: 'placing',
         MOVING: 'moving',
         REMOVING: 'removing'
-    }
-    // 其他全局配置...
+    },
+    MIN_PIECES_TO_WIN: 3,
+    MAX_PIECES_COUNT: 36,
+    DEFAULT_PLAYER_CONFIG: {
+        black: {
+            playerType: 'self',
+            difficulty: 'easy',
+            aiConfig: {
+                url: '',
+                model: '',
+                apiKey: ''
+              }
+        },
+        white: {
+            playerType: 'local',
+            difficulty: 'easy',
+            aiConfig: {
+                url: '',
+                model: '',
+                apiKey: ''
+              }
+        }
+    },// 其他全局配置...
 };

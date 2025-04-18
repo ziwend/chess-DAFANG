@@ -1,4 +1,4 @@
-import { DIRECTIONS, NUMBERS } from './gameConstants.js';
+import { DIRECTIONS, CONFIG } from './gameConstants.js';
 
 export function isOnEdge(row, col) {
     return row === 0 || row === 5 || col === 0 || col === 5;
@@ -55,12 +55,12 @@ export function updateBoard(color, startRow, startCol, targetRow, targetCol, boa
 }
 
 export function isMaxPiecesCount (blackCount, whiteCount) {
-    return blackCount + whiteCount === NUMBERS.MAX_PIECES_COUNT;
+    return blackCount + whiteCount === CONFIG.MAX_PIECES_COUNT;
 }
 
 // 新增：检查棋盘是否已满
 export function isBoardWillFull (blackCount, whiteCount) {
-    return blackCount + whiteCount + 1 === NUMBERS.MAX_PIECES_COUNT;
+    return blackCount + whiteCount + 1 === CONFIG.MAX_PIECES_COUNT;
 }
 
 // 创建一个专用的深拷贝函数

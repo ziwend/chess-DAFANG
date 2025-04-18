@@ -1,6 +1,6 @@
-import { DEFAULT_PLAYER_CONFIG, CONFIG } from './gameConstants';
+import { CONFIG } from './gameConstants';
 export function loadPlayerConfig() {
-    const playerConfig = wx.getStorageSync('playerConfig') || DEFAULT_PLAYER_CONFIG;
+    const playerConfig = wx.getStorageSync('playerConfig') || CONFIG.DEFAULT_PLAYER_CONFIG;
     return playerConfig;
 }
 
