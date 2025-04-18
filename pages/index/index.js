@@ -433,8 +433,8 @@ Page({
                     debugLog(CONFIG.DEBUG, `游戏结束，获胜方: ${winner} ，因为:`, feedback);
                     this.showGameOver(message);
                 }
-                cacheManager.saveToStorage(); // 保存缓存到本地存储
-                debugLog(CONFIG.DEBUG, "boardRectCache", this.data.boardRectCache);
+                // cacheManager.saveToStorage(); // 保存缓存到本地存储
+                // debugLog(CONFIG.DEBUG, "boardRectCache", this.data.boardRectCache);
                 return winner; // 游戏结束，返回winner             
             }
         }

@@ -1,7 +1,7 @@
 import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces } from './formationChecker.js';
 import { deepCopy,canPlace } from './boardUtils.js';
 import { CONFIG } from './gameConstants.js';
-
+import { FORMATION_POSITIONS } from './formationPositions.js';
 export function validatePosition(position, type, color, board) {
     const validations = {
         [CONFIG.GAME_PHASES.PLACING]: () => isValidPlacement(position, board),

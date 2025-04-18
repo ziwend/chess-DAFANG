@@ -36,28 +36,49 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
     const finalPositions = [];
     let { bestSelfPosition, bestOpponentPosition } = evaluatePositions(board, currentColor, opponentColor, availablePositions);
 
-    // 1、优先判断放置在己方棋子周围是否会组成阵型，这样做的前提是该次落子不是奖励的机会,因为奖励的棋子形成的阵型不再给奖励
+    // 1、优先判断放置在己方棋子周围是否会组成阵型
     if (bestSelfPosition && !extraMoves > 0) {
-        finalPositions.push({
-            action: 'placing',
-            position: bestSelfPosition
-        });
+        if (Array.isArray(bestSelfPosition[0])) {
+            // 处理多个相等位置的情况
+            bestSelfPosition.forEach(pos => {
+                finalPositions.push({
+                    action: 'placing',
+                    position: pos
+                });
+            });
+        } else {
+            finalPositions.push({
+                action: 'placing',
+                position: bestSelfPosition
+            });
+        }
         return finalPositions;
     }
 
-    // 2、接着检查对方棋子是否会组成阵型，如果会组成阵型，放在对方棋子周围
+    // 2、处理对方可能的位置
     if (bestOpponentPosition) {
-        finalPositions.push({
-            action: 'placing',
-            position: bestOpponentPosition
-        });
+        if (Array.isArray(bestOpponentPosition[0])) {
+            // 处理多个相等位置的情况
+            bestOpponentPosition.forEach(pos => {
+                finalPositions.push({
+                    action: 'placing',
+                    position: pos
+                });
+            });
+        } else {
+            finalPositions.push({
+                action: 'placing',
+                position: bestOpponentPosition
+            });
+        }
         return finalPositions;
     }
 
     const tempBoard = deepCopy(board);
     let uniquePositions = Array.from(availablePositions).map(pos => JSON.parse(pos));
     // 初始化
-    const agent = new MCTSAgent({ simulations: 200, maxDepth: 5 });
+    const maxDepth = CONFIG.MAX_PIECES_COUNT - blackCount - whiteCount;
+    const agent = new MCTSAgent({ simulations: 100, maxDepth: maxDepth });
 
     // 对这些候选点做 MCTS 模拟搜索，得到胜率最高的点来决策。
     const bestPlace = agent.getBestPlace(
@@ -147,6 +168,8 @@ function evaluatePositions(tempBoard, currentColor, opponentColor, availablePosi
     let maxOpponentExtraMoves = 0;
     let bestSelfPosition = null;
     let bestOpponentPosition = null;
+    let equalPositions = []; // 用于存储多个相等的位置
+    let equalPositionsOpponent = [];
 
     for (let row = 0; row < tempBoard.length; row++) {
         for (let col = 0; col < tempBoard[row].length; col++) {
@@ -155,9 +178,9 @@ function evaluatePositions(tempBoard, currentColor, opponentColor, availablePosi
                 if (maxSelfExtraMoves < result.maxSelfExtraMoves) {
                     maxSelfExtraMoves = result.maxSelfExtraMoves;
                     bestSelfPosition = result.bestSelfPosition;
-                    debugLog(CONFIG.DEBUG, `0-evaluatePositions-己方${currentColor}形成阵型的位置:`, bestSelfPosition, maxSelfExtraMoves);
+                    equalPositions = [bestSelfPosition]; // 重置相等位置数组
                 } else if (maxSelfExtraMoves === result.maxSelfExtraMoves) {
-                    debugLog(CONFIG.DEBUG, `0-${currentColor}该位置与之前的阵型获取的奖励相同,待考虑是否返回：`, result.bestSelfPosition);
+                    equalPositions.push(result.bestSelfPosition); // 添加到相等位置数组                    
                 }
             }
 
@@ -165,14 +188,21 @@ function evaluatePositions(tempBoard, currentColor, opponentColor, availablePosi
                 if (maxOpponentExtraMoves < result.maxOpponentExtraMoves) {
                     maxOpponentExtraMoves = result.maxOpponentExtraMoves;
                     bestOpponentPosition = result.bestOpponentPosition;
-
+                    equalPositionsOpponent = [bestOpponentPosition]; // 重置相等位置数组
                 } else if (maxOpponentExtraMoves === result.maxOpponentExtraMoves) {
-                    debugLog(CONFIG.DEBUG, `0-${currentColor}对方在该位置与之前的阵型获取的奖励相同，待考虑：`, result.bestOpponentPosition);
+                    equalPositionsOpponent.push(result.bestOpponentPosition); // 添加到相等位置数组
+
                 }
             }
         }
     }
-    return { bestSelfPosition, bestOpponentPosition };
+
+    return {
+        bestSelfPosition: equalPositions.length > 1 ? equalPositions : bestSelfPosition,
+        bestOpponentPosition: equalPositionsOpponent.length > 1 ? equalPositionsOpponent : bestOpponentPosition,
+        maxSelfExtraMoves,
+        maxOpponentExtraMoves
+    };
 }
 function getBestFormationPosition(row, col, currentBoard, currentColor, opponentColor, availablePositions) {
     let bestSelfPosition = null;
@@ -226,7 +256,7 @@ function getBestFormationPosition(row, col, currentBoard, currentColor, opponent
                 if (opponentFormation) {
                     maxOpponentExtraMoves = opponentFormation.extraMoves;
                     bestOpponentPosition = [row, col];
-                    debugLog(CONFIG.DEBUG, `找到对方可能形成阵型的位置: ${opponentColor}`, [row, col], maxOpponentExtraMoves);
+                    // debugLog(CONFIG.DEBUG, `找到对方可能形成阵型的位置: ${opponentColor}`, [row, col], maxOpponentExtraMoves);
                 }
             }
         }
@@ -478,7 +508,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，会形成${formationUpdateOpponent.formationType}阵型，但是吃子数同之前的位置:`, bestOpponentPosition);
                     continue;
                 }
-                debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，会形成${formationUpdateOpponent.formationType}阵型`, formationUpdateOpponent.formationPositions);
+                debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，会获得${formationUpdateOpponent.extraMoves}次吃子`, formationUpdateOpponent.formationPositions);
 
                 // TODO 存在的问题，当对方移动一颗棋子后既能形成大龙，大方和斜线阵型怎么取舍
                 let countAdjacentOpponent = 4; // 周围可以移动的棋子最多四颗
@@ -486,9 +516,8 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     // 先不判断空缺的位置 // 如果是空白的位置，则该位置周围不能有多于1个的对方棋子，否则吃子无效
                     if (pos[0] === newRow && pos[1] === newCol) continue;
                     // 还要判断该棋子是否已经在阵型中
-                    const formationUpdateOpponentNew = checkFormation(pos[0], pos[1], opponentColor, board);
-                    if (formationUpdateOpponentNew) {
-                        debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子在${formationUpdateOpponentNew.formationType}阵型中不能移除`, pos);
+                    if (board[pos[0]][pos[1]].isFormation) {
+                        debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${pos}已经在阵型中`, pos);
                         continue;
                     }
 
@@ -506,17 +535,15 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     const result = countAdjacentPieces(pos[0], pos[1], currentColor, opponentColor, board);
                     if (result.countAdjacentOpponent < countAdjacentOpponent) {
                         countAdjacentOpponent = result.countAdjacentOpponent;
-                        if (formationUpdateDestroy != null) {
+                        if (formationUpdateDestroy) {
                             maxOpponentExtraMoves = formationUpdateOpponent.extraMoves - formationUpdateDestroy.extraMoves;
                             betterOpponentPosition = pos;
-                            debugLog(CONFIG.DEBUG, `1-${currentColor}-移除对方${pos}后只能部分破坏对方阵型`, bestOpponentPosition, maxOpponentExtraMoves);
+                            debugLog(CONFIG.DEBUG, `1-${currentColor}-移除对方${pos}后只能部分破坏对方阵型`, formationUpdateOpponent.extraMoves, formationUpdateDestroy.extraMoves);
                         } else {
                             maxOpponentExtraMoves = formationUpdateOpponent.extraMoves;
                             bestOpponentPosition = pos;
                             debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${[row, col]}移动到${newRow},${newCol}后，会获得更多奖励，且该位置周围棋子比之前的少:`, { pos, bestOpponentPosition });
                         }
-
-
                     } else if (result.countAdjacentOpponent === countAdjacentOpponent) {
                         // 再判断该位置移除之后自己能不能形成阵型
                         const thisPosExtraMoves = evaluateFormation(pos[0], pos[1], currentColor, opponentColor, board, maxSelfExtraMoves);
@@ -526,17 +553,17 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                             if (formationUpdateDestroy != null && formationUpdateDestroy.extraMoves < maxOpponentExtraMoves) {
                                 maxOpponentExtraMoves = formationUpdateDestroy.extraMoves;
                                 bestOpponentPosition = pos;
+                                debugLog(CONFIG.DEBUG, `1-${currentColor}-找到对方阵型上自己形成阵型的位置`, bestOpponentPosition, maxOpponentExtraMoves);
                             } else {
                                 maxOpponentExtraMoves = formationUpdateOpponent.extraMoves;
                                 bestOpponentPosition = pos;
                                 debugLog(CONFIG.DEBUG, `1-${currentColor}找到对方阵型上自己可能形成阵型的位置:`, bestOpponentPosition, countAdjacentOpponent);
                             }
-
-
-
+                        } else{
+                            debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${pos}周围棋子数量相同, 该位置移除之后自己不能形成阵型`, bestOpponentPosition, countAdjacentOpponent);
                         }
                     }
-                    debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子移除后：`, { pos, bestOpponentPosition });
+                    debugLog(CONFIG.DEBUG, `1-${currentColor}-对方棋子${pos}判断移除后：`, bestOpponentPosition, maxOpponentExtraMoves);
                 }
                 if (betterOpponentPosition || (bestOpponentPosition && countAdjacentOpponent > 0)) {
                     // 如果移除阵型上的棋子只能部分破坏对方阵型，则考虑移除要移动的row,col位置的棋子是否可以破坏对方阵型
@@ -712,7 +739,8 @@ function getValidMoves(currentColor, opponentColor, data) {
     let betterMoves = null;
     let goodMoves = null;
     let equalPositions = []; // 用于存储多个相等的位置
-
+    // 添加新变量来跟踪每个移动对应的对方可能获得的奖励
+    const moveRewards = new Map();
     for (let row = 0; row < 6; row++) {
         for (let col = 0; col < 6; col++) {
             if (hasValidPiece(row, col, board) !== currentColor) {
@@ -752,15 +780,13 @@ function getValidMoves(currentColor, opponentColor, data) {
                             newPosition: [newRow, newCol]
                         };
                         equalPositions = [betterMoves]; // 重置相等位置数组
-                        debugLog(CONFIG.DEBUG, `1-${currentColor}-move后自己会形成阵型betterMoves: `, betterMoves, maxSelfExtraMoves);
+                        debugLog(false, `1-${currentColor}-move后自己会形成阵型betterMoves: `, betterMoves, maxSelfExtraMoves);
                     } else if (maxSelfExtraMoves === formationUpdate.extraMoves) {
                         betterMoves = {
                             position: [row, col],
                             newPosition: [newRow, newCol]
                         };
-                        equalPositions.push(betterMoves); // 添加到相等位置数组
-
-                        debugLog(CONFIG.DEBUG, `1-${currentColor}-move到${newRow},${newCol}后自己会形成阵型但是获得的奖励与之前的一样: `, betterMoves);
+                        equalPositions.push(betterMoves); // 添加到相等位置数组                        
                     }
                     continue;
                 }
@@ -798,21 +824,27 @@ function getValidMoves(currentColor, opponentColor, data) {
                 if (destroyedOpponentExtraMoves <= newEvaluateFormationResult && newEvaluateFormationResult > 0) {
                     debugLog(CONFIG.DEBUG, `4、${currentColor}-${row},${col} move后对方会形成阵型, 且获取更多的吃子tempOpponentExtraMoves=`, newEvaluateFormationResult);
                     if (possiblePosition) {
-                        worstMoves.push({
+                        const move = {
                             action: 'moving',
                             position: [row, col],
                             newPosition: possiblePosition
-                        });
+                        };
+                        worstMoves.push(move);
+                        // 记录此移动对应的对方奖励值
+                        moveRewards.set(JSON.stringify(move), newEvaluateFormationResult);
                         debugLog(CONFIG.DEBUG, `4、${currentColor}-move后会阻止对方会形成阵型, worstMoves: `, worstMoves, newEvaluateFormationResult);
                         continue;
                     }
                     if (commonPositions.length > 0) {
                         commonPositions.forEach(pos => {
-                            worstMoves.push({
+                            const move = {
                                 action: 'moving',
                                 position: [row, col],
                                 newPosition: pos
-                            });
+                            };
+                            worstMoves.push(move);
+                            // 记录此移动对应的对方奖励值
+                            moveRewards.set(JSON.stringify(move), newEvaluateFormationResult);
                         });
                         debugLog(CONFIG.DEBUG, `4、${currentColor}-move后对方会形成阵型, worstMoves: `, worstMoves);
                         continue;
@@ -848,6 +880,7 @@ function getValidMoves(currentColor, opponentColor, data) {
                 newPosition: position.newPosition
             });
         });
+        debugLog(CONFIG.DEBUG, `1-${currentColor}-move后自己会形成阵型但是获得的奖励与之前的一样: `, equalPositions);
         return finalPositions; // 返回所有相等的位置
     }
 
@@ -893,19 +926,33 @@ function getValidMoves(currentColor, opponentColor, data) {
         debugLog(CONFIG.DEBUG, `5-3、${currentColor}既不能自己形成阵型，也不能阻止对方形成阵型`, validMoves);
         return validMoves;
     }
-    debugLog(CONFIG.DEBUG, `6、${currentColor}move后对方会形成阵型worstMoves:`, worstMoves);
+    // 在返回worstMoves之前，先按对方可能获得的奖励值排序
+    if (worstMoves.length > 0) {
+        worstMoves.sort((a, b) => {
+            const rewardA = moveRewards.get(JSON.stringify(a)) || 0;
+            const rewardB = moveRewards.get(JSON.stringify(b)) || 0;
+            return rewardA - rewardB; // 按对方可能获得的奖励从小到大排序
+        });
+
+        // 只返回对方获得奖励最小的移动
+        const minReward = moveRewards.get(JSON.stringify(worstMoves[0]));
+        return worstMoves.filter(move =>
+            (moveRewards.get(JSON.stringify(move)) || 0) === minReward
+        );
+    }
     return worstMoves;
 }
 
 function evaluateFormation(row, col, currentColor, opponentColor, board, maxSelfExtraMoves) {
     const formationUpdate = checkFormation(row, col, currentColor, board);
-    if (formationUpdate) {
-        const { countAdjacent, countAdjacentOpponent } = countAdjacentPieces(row, col, currentColor, opponentColor, board);
+    if (!formationUpdate) return 0;
 
-        if (isValidFormation(row, col, formationUpdate, countAdjacent, maxSelfExtraMoves)) {
-            return formationUpdate.extraMoves;
-        }
+    const { countAdjacent, countAdjacentOpponent } = countAdjacentPieces(row, col, currentColor, opponentColor, board);
+
+    if (isValidFormation(row, col, formationUpdate, countAdjacent, maxSelfExtraMoves)) {
+        return formationUpdate.extraMoves;
     }
+
     return 0;
 }
 function isValidFormation(row, col, formationUpdate, countAdjacent, maxSelfExtraMoves) {
