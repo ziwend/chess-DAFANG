@@ -78,7 +78,12 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
     let uniquePositions = Array.from(availablePositions).map(pos => JSON.parse(pos));
     // 初始化
     const maxDepth = CONFIG.MAX_PIECES_COUNT - blackCount - whiteCount;
-    const agent = new MCTSAgent({ simulations: 100, maxDepth: maxDepth });
+    const agent = new MCTSAgent({ 
+        minSimulations: 2,
+        maxSimulations: 100,
+        maxDepth: maxDepth,
+        DEBUG: CONFIG.DEBUG 
+    });    
 
     // 对这些候选点做 MCTS 模拟搜索，得到胜率最高的点来决策。
     const bestPlace = agent.getBestPlace(

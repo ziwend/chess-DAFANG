@@ -4,12 +4,13 @@ import { debugLog } from "./historyUtils";
 
 export class MCTSAgent {
     constructor(config = {}) {
-        // 修改构造函数，添加最小和最大模拟次数
-        this.minSimulations = config.minSimulations || 2;
+        this.maxDepth = config.maxDepth || 4;
         this.maxSimulations = config.maxSimulations || 50;
-        this.simulations = config.simulations || 50;
-        this.maxDepth = config.maxDepth || CONFIG.MAX_PIECES_COUNT;
-        this.usedPositions = new Map(); // 添加位置使用记录
+        this.minSimulations = config.minSimulations || 2;
+        this.dynamicSimulation = config.dynamicSimulation !== false;
+        this.DEBUG = config.DEBUG || false;
+        // Initialize the Map to track used positions
+        this.usedPositions = new Map();
     }
 
     /**
@@ -27,13 +28,13 @@ export class MCTSAgent {
 
         for (const position of possiblePositions) {
             const score = this.runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn);
-            debugLog(CONFIG.DEBUG, '模拟位置得分:', position, score);
-            if (score >= bestScore) {
+            debugLog(this.DEBUG, '模拟位置得分:', position, score);
+            if (score > bestScore) {
                 bestScore = score;
                 bestPlace = position;
             }
         }
-        debugLog(CONFIG.DEBUG, '最佳落子位置:', bestPlace, '得分:', bestScore, currentColor);
+        debugLog(this.DEBUG, '最佳落子位置:', bestPlace, '得分:', bestScore, currentColor);
 
         return bestPlace;
         //return null; // only test
@@ -49,19 +50,48 @@ export class MCTSAgent {
      * @returns {number} 模拟得分
      */
     runMCTSForPlace(tempBoard, currentColor, opponentColor, position, evaluatePositionsFn) {
-        // 执行模拟
-        let wins = 0;
-        for (let i = 0; i < this.simulations; i++) {
-            const boardCopy = JSON.parse(JSON.stringify(tempBoard));
-            this.applyPlace(boardCopy, position, currentColor);
-            const winner = this.simulateGame(boardCopy, opponentColor, currentColor, evaluatePositionsFn);
-            if (winner === currentColor) wins++;
-            else if (winner === 'draw') wins += 0.5;
-            else if (winner === opponentColor) wins--;
+        this.applyPlace(tempBoard, position, currentColor);
+
+        const winner = this.checkImmediateWin(tempBoard, currentColor, opponentColor, evaluatePositionsFn);
+        this.unApplyPlace(tempBoard, position);
+
+        if (winner === currentColor) return 1000;
+        if (winner === opponentColor) return -1000;
+        if (winner === 'draw') return 0;
+
+        const boardCopy = JSON.parse(JSON.stringify(tempBoard));
+        this.applyPlace(boardCopy, position, currentColor);
+
+        const availablePositions = new Set();
+        evaluatePositionsFn(boardCopy, opponentColor, currentColor, availablePositions);
+        const availableCount = availablePositions.size;
+
+        let simulations = this.maxSimulations;
+        if (this.dynamicSimulation) {
+            const estimatedCombos = Math.pow(availableCount, Math.min(this.maxDepth, availableCount));
+            simulations = Math.min(this.maxSimulations, Math.max(this.minSimulations, estimatedCombos));
         }
+
+        let wins = 0;
+        for (let i = 0; i < simulations; i++) {
+            const simBoard = JSON.parse(JSON.stringify(boardCopy));
+            const result = this.simulateGame(simBoard, opponentColor, currentColor, evaluatePositionsFn);
+            if (result === currentColor) wins++;
+            else if (result === 'draw') wins += 0.5;
+            else if (result === opponentColor) wins--;
+        }
+
         return wins;
     }
 
+    checkImmediateWin(board, currentColor, opponentColor, evaluatePositionsFn) {
+        const availablePositions = new Set();
+        const { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(board, currentColor, opponentColor, availablePositions);
+        if (bestSelfPosition) return currentColor;
+        if (bestOpponentPosition) return opponentColor;
+
+        return availablePositions.size === 0 ? 'draw' : null;
+    }
     /**
      * 模拟游戏进行若干步，返回赢家
      * @param {Array} board 当前棋盘
@@ -135,6 +165,10 @@ export class MCTSAgent {
         };
     }
 
+    unApplyPlace(board, pos) {
+        const [row, col] = pos;
+        board[row][col] = null;
+    }
     /**
      * 根据棋盘当前状态估算赢家（用于平局判定）
      * @param {Array} board 当前棋盘
