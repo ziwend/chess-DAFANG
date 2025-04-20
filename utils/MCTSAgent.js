@@ -33,7 +33,7 @@ export class MCTSAgent {
         const { black, white } = this.countStones(currentBoard);
         const empty = 36 - black - white;
         const dynamicSimulations = Math.min(this.maxSimulations, Math.pow(empty, 2));
-        const dynamicDepth = Math.max(4, Math.min(this.maxDepth, empty));
+        const dynamicDepth = Math.max(2, Math.min(this.maxDepth, empty));
 
         const options = Array.from(availablePositions).map(p => JSON.parse(p));
         const scores = new Map();
@@ -42,13 +42,14 @@ export class MCTSAgent {
             const boardCopy = JSON.parse(JSON.stringify(currentBoard));
             this.applyPlace(boardCopy, pos, currentColor);
 
-            const boardKey = JSON.stringify(boardCopy);
-            if (this.simulationCache.has(boardKey)) {
-                const cachedAvg = this.simulationCache.get(boardKey);
-                scores.set(JSON.stringify(pos), cachedAvg);
-                debugLog(CONFIG.DEBUG, '使用缓存得分:', pos, cachedAvg);
-                continue;
-            }
+            //去除缓存，因为反应变慢，也没有命中缓存
+            //  const boardKey = JSON.stringify(boardCopy);
+            // if (this.simulationCache.has(boardKey)) {
+            //     const cachedAvg = this.simulationCache.get(boardKey);
+            //     scores.set(JSON.stringify(pos), cachedAvg);
+            //     debugLog(CONFIG.DEBUG, '使用缓存得分:', pos, cachedAvg);
+            //     continue;
+            // }
 
             let totalScore = 0;
             for (let i = 0; i < dynamicSimulations; i++) {
@@ -64,9 +65,9 @@ export class MCTSAgent {
             }
 
             const avg = totalScore / dynamicSimulations;
-            this.simulationCache.set(boardKey, avg);
+            // this.simulationCache.set(boardKey, avg);
             scores.set(JSON.stringify(pos), avg);
-            debugLog(false, `${currentColor}对${pos}进行${dynamicSimulations}次MCTS模拟得分:`, avg,);
+            debugLog(CONFIG.DEBUG, `${currentColor}对${pos}进行${dynamicSimulations}次MCTS模拟，每次模拟放置${dynamicDepth}颗棋子，得分:`, avg,);
         }
 
         let bestScore = -Infinity;
@@ -81,17 +82,17 @@ export class MCTSAgent {
         }
         // 如果存在多个同分位置，根据 WEIGHTS 选择权重最大的位置
         if (bestPlaces.length > 1) {
+            // 先找最大权重
             let maxWeight = -Infinity;
-            bestPlaces = bestPlaces.filter(pos => {
+            bestPlaces.forEach(pos => {
                 const [row, col] = pos;
                 const weight = WEIGHTS[row][col];
-                if (weight > maxWeight) {
-                    maxWeight = weight;
-                    return true;
-                } else if (weight === maxWeight) {
-                    return true;
-                }
-                return false;
+                if (weight > maxWeight) maxWeight = weight;
+            });
+            // 再筛选所有等于最大权重的位置
+            bestPlaces = bestPlaces.filter(pos => {
+                const [row, col] = pos;
+                return WEIGHTS[row][col] === maxWeight;
             });
         }
 
@@ -198,32 +199,24 @@ export class MCTSAgent {
             // 处理己方最佳位置数组
             if (bestSelfPosition) {
                 // 如果是数组的数组，说明有多个相等的最佳位置
+                // const move = Array.isArray(bestSelfPosition[0]) ? this.pickRandom(bestSelfPosition) : bestSelfPosition;
+                // this.applyPlace(board, move, player);
+                debugLog(false, `${player}选择最佳位置:`, bestSelfPosition);
                 return player;
             }
 
             let move = null;
-            const options = Array.from(availablePositions).map(p => JSON.parse(p));
-
-            if (options.length === 0) break;
-
-            const opportunities = options.filter(pos => {
-                const tempBoard = JSON.parse(JSON.stringify(board));
-                this.applyPlace(tempBoard, pos, player);
-                const chance = evaluatePositionsFn(tempBoard, player, opponent, new Set());
-                return !!chance.bestSelfPosition;
-            });
-            const threats = options.filter(pos => {
-                const tempBoard = JSON.parse(JSON.stringify(board));
-                this.applyPlace(tempBoard, pos, opponent);
-                const threatCheck = evaluatePositionsFn(tempBoard, opponent, player, new Set());
-                return !!threatCheck.bestSelfPosition;
-            });
-
-            if (opportunities.length > 0) {
-                move = this.pickRandom(opportunities);
-            } else if (threats.length > 0) {
-                move = this.pickRandom(threats);
+            // 处理对手最佳位置数组
+            if (bestOpponentPosition) {
+                if (Array.isArray(bestOpponentPosition[0])) {
+                    // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
+                    return opponent;
+                }
+                move = bestOpponentPosition;
             } else {
+                const options = Array.from(availablePositions).map(p => JSON.parse(p));
+                if (options.length === 0) break;
+
                 move = this.pickRandom(options);
             }
 
@@ -232,24 +225,24 @@ export class MCTSAgent {
             turn++;
         }
 
-        const finalAvailable = new Set();
-        const { bestSelfPosition } = evaluatePositionsFn(board, player, opponent, finalAvailable);
-        if (bestSelfPosition) return player;
-
         const score = this.evaluateBoardScore(board, player, opponent, evaluatePositionsFn);
         return score > 0.5 ? player : score < 0.5 ? opponent : 'draw';
     }
 
     evaluateBoardScore(board, player, opponent, evaluatePositionsFn) {
-        const { black, white } = this.countStones(board);
         const available = new Set();
         const { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(board, player, opponent, available);
 
-        let materialScore = player === 'black' ? black - white : white - black;
+        if (bestOpponentPosition && Array.isArray(bestOpponentPosition[0])) {
+            // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
+               
+            debugLog(CONFIG.DEBUG, `${player}的最佳位置:`, bestSelfPosition, '对手的最佳位置:', bestOpponentPosition);
+            return 0;
+        }
+        
         let threatBonus = bestSelfPosition ? 0.2 : 0;
         let dangerPenalty = bestOpponentPosition ? -0.2 : 0;
-
-        let score = 0.5 + materialScore * 0.01 + threatBonus + dangerPenalty;
+        let score = 0.5 + threatBonus + dangerPenalty;
         return Math.max(0, Math.min(1, score));
     }
 
@@ -306,12 +299,54 @@ export class MCTSAgent {
     pickRandom(array) {
         if (!array.length) return null;
 
+        // 排序生成唯一 key（避免排列不同导致重复）
+        const arrayKey = JSON.stringify(array.slice().sort());
+
+        if (!this.shuffleCache) this.shuffleCache = new Map();
+        if (!this.shuffleCursor) this.shuffleCursor = new Map();
+
+        // 初始化缓存
+        if (!this.shuffleCache.has(arrayKey)) {
+            const indices = [...Array(array.length).keys()];
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            this.shuffleCache.set(arrayKey, indices);
+            this.shuffleCursor.set(arrayKey, 0);
+        }
+
+        const cursor = this.shuffleCursor.get(arrayKey);
+        const sequence = this.shuffleCache.get(arrayKey);
+
+        // 如果用完一轮，重新洗牌并从头开始
+        if (cursor >= sequence.length) {
+            debugLog(false, '所有位置都已使用，重置记录:', array);
+            const indices = [...Array(array.length).keys()];
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            this.shuffleCache.set(arrayKey, indices);
+            this.shuffleCursor.set(arrayKey, 0);
+        }
+
+        const currentCursor = this.shuffleCursor.get(arrayKey);
+        const selectedIndex = this.shuffleCache.get(arrayKey)[currentCursor];
+        this.shuffleCursor.set(arrayKey, currentCursor + 1);
+
+        return array[selectedIndex];
+    }
+    pickRandom2(array) {
+        if (!array.length) return null;
+
         // 获取当前数组的唯一键
         const arrayKey = JSON.stringify(array.sort());
         const usedIndices = this.usedPositions.get(arrayKey) || new Set();
 
         // 如果所有位置都已使用，重置记录
         if (usedIndices.size >= array.length) {
+            debugLog(CONFIG.DEBUG, '所有位置都已使用，重置记录:', array);
             usedIndices.clear();
         }
 

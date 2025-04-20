@@ -35,8 +35,8 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
     // const maxDepth = CONFIG.MAX_PIECES_COUNT - blackCount - whiteCount;
     const agent = new MCTSAgent({
         minSimulations: 2,
-        maxSimulations: 100,
-        maxDepth: 5,
+        maxSimulations: 80,
+        maxDepth: 12,
         currentPlayer: currentColor,
     });
 
@@ -1310,7 +1310,7 @@ function getValidMoves(currentColor, opponentColor, data) {
         debugLog(CONFIG.DEBUG, `1-${currentColor}-move后自己会形成阵型但是获得的奖励与之前的一样: `, equalPositions);
         return finalPositions; // 返回所有相等的位置
     }
-
+    // 己方形成阵型的移动
     if (betterMoves) {
         finalPositions.push({
             action: 'moving',
@@ -1320,30 +1320,29 @@ function getValidMoves(currentColor, opponentColor, data) {
         return finalPositions;
     }
 
-    // 新增：优先返回净收益最大的移动
-    if (bestNetBenefitMoves.length > 0 && bestNetBenefit > -Infinity) {
-        debugLog(CONFIG.DEBUG, `2-${currentColor}-净收益最大移动:`, bestNetBenefitMoves, bestNetBenefit);
-        return bestNetBenefitMoves;
-    }
-
-    if (goodMoves) {
-        finalPositions.push({
-            action: 'moving',
-            position: goodMoves.position,
-            newPosition: goodMoves.newPosition
-        });
-        return finalPositions;
-    }
     if (validMoves.length > 0) {
+        // 优先筛选移动后对方吃子为0的安全移动
+        const safeMoves = [];
+        validMoves.forEach(move => {
+            const tempBoard = deepCopy(board);
+            tempBoard[move.position[0]][move.position[1]] = null;
+            tempBoard[move.newPosition[0]][move.newPosition[1]] = { color: currentColor, isFormation: false };
+            const opponentEat = evaluateFormation(move.newPosition[0], move.newPosition[1], opponentColor, currentColor, tempBoard, 0);
+            if (opponentEat === 0) {
+                safeMoves.push(move);
+            }
+        });
+        if (safeMoves.length > 0) {
+            debugLog(CONFIG.DEBUG, `5-0、${currentColor}优先选择移动后对方吃子为0的安全移动`, safeMoves);
+            return safeMoves;
+        }
+
         //对于这些要按照place的逻辑再判断一下
         let possiblePositions = getPossibleMoves(validMoves, board, currentColor, opponentColor);
         if (possiblePositions && possiblePositions.length > 0) {
             debugLog(CONFIG.DEBUG, `5-1、${currentColor}棋子周围放置2颗棋子会组成阵型`, possiblePositions);
             return possiblePositions;
         }
-        // 在此之前还要判断一下对方是否在垂直或水平方向上形成3子连珠，且只有对方的棋子
-
-        // 4、棋子放在靠近对方棋子，防止对方连续两颗棋子后形成阵型
         possiblePositions = getPossibleMoves(validMoves, board, opponentColor, currentColor);
         if (possiblePositions && possiblePositions.length > 0) {
             debugLog(CONFIG.DEBUG, `5-2、${currentColor}放在对方棋子周围，防止连续放置2颗棋子组成阵型`, possiblePositions);
@@ -1351,6 +1350,20 @@ function getValidMoves(currentColor, opponentColor, data) {
         }
         debugLog(CONFIG.DEBUG, `5-3、${currentColor}既不能自己形成阵型，也不能阻止对方形成阵型`, validMoves);
         return validMoves;
+    }
+
+    // 新增：只在净收益为正时才返回
+    if (bestNetBenefitMoves.length > 0 && bestNetBenefit > 0) {
+        debugLog(CONFIG.DEBUG, `2-${currentColor}-净收益最大移动:`, bestNetBenefitMoves, bestNetBenefit);
+        return bestNetBenefitMoves;
+    }
+    if (goodMoves) {
+        finalPositions.push({
+            action: 'moving',
+            position: goodMoves.position,
+            newPosition: goodMoves.newPosition
+        });
+        return finalPositions;
     }
     // 在返回worstMoves之前，先按对方可能获得的奖励值排序
     if (worstMoves.length > 0) {
