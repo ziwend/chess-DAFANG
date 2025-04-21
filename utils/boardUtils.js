@@ -23,6 +23,8 @@ export function canMove(row, col, board) {
 export function hasValidPiece(row, col, board) {
     if (isInBoard(row, col) && board[row][col]) {
         return board[row][col].color;
+    } else { // 如果不在棋盘上或没有棋子，返回 null
+        return null;
     }
 }
 // 当前位置存在棋子且可以移动

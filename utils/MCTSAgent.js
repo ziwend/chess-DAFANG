@@ -236,7 +236,7 @@ export class MCTSAgent {
         if (bestOpponentPosition && Array.isArray(bestOpponentPosition[0])) {
             // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
                
-            debugLog(CONFIG.DEBUG, `${player}的最佳位置:`, bestSelfPosition, '对手的最佳位置:', bestOpponentPosition);
+            debugLog(false, `${player}的最佳位置:`, bestSelfPosition, '对手的最佳位置:', bestOpponentPosition);
             return 0;
         }
         
