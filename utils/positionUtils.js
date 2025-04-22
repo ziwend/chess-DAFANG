@@ -894,7 +894,11 @@ function getValidMoves(currentColor, opponentColor, data) {
     // 选择最终移动
     let finalMove;
     if (moves.selfFormationMoves.length > 0) {
-        finalMove = selectBestMoves(moves.selfFormationMoves, 'giveOpponent', true)[0];
+        // 先筛选奖励最大的
+        const maxReward = Math.max(...moves.selfFormationMoves.map(m => m.value));
+        const maxRewardMoves = moves.selfFormationMoves.filter(m => m.value === maxReward);
+        // 在奖励最大的中再选给对方机会最少的
+        finalMove = selectBestMoves(maxRewardMoves, 'giveOpponent', true)[0];
         debugLog(CONFIG.DEBUG, `选择己方阵型移动:`, finalMove);
         return [finalMove];
     }
