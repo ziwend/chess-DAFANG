@@ -4,13 +4,12 @@ import { debugLog } from "./historyUtils";
 
 export class MCTSAgent {
     constructor(config = {}) {
-        this.maxDepth = config.maxDepth || 5;
-        this.maxSimulations = config.maxSimulations || 100;
-        this.currentPlayer = config.currentPlayer || 'black';
-
+        this.dynamicSimulations = config.dynamicSimulations || 100;
+        this.dynamicDepth = config.dynamicDepth || 5;
         // Initialize the Map to track used positions
         this.usedPositions = new Map();
         this.simulationCache = new Map(); // 缓存模拟结果
+        this.firstTurnCache = new Map(); // 缓存第一轮的可用位置
     }
 
     /**
@@ -22,26 +21,20 @@ export class MCTSAgent {
      * @param {Function} evaluatePositionsFn 用于评估局势的方法
      * @returns {Array} 最佳位置
      */
-    getBestPlace(currentColor, opponentColor, currentBoard, evaluatePositionsFn, extraMoves) {
-        const availablePositions = new Set();
-        let finalPositions = [];
-        finalPositions = this.checkImmediateWin(currentBoard, currentColor, opponentColor, evaluatePositionsFn, availablePositions, extraMoves);
-        if (finalPositions.length > 0) {
-            return finalPositions;
-        }
 
-        const { black, white } = this.countStones(currentBoard);
-        const empty = 36 - black - white;
-        const dynamicSimulations = Math.min(this.maxSimulations, Math.pow(empty, 2));
-        const dynamicDepth = Math.max(2, Math.min(this.maxDepth, empty));
 
+    // 修改 getBestPlace 方法中的相关代码
+    getBestPlace(currentColor, opponentColor, currentBoard, evaluatePositionsFn, availablePositions) {
         const options = Array.from(availablePositions).map(p => JSON.parse(p));
         const scores = new Map();
 
         for (const pos of options) {
+            // 为每个位置创建独立的统计对象
             const boardCopy = JSON.parse(JSON.stringify(currentBoard));
             this.applyPlace(boardCopy, pos, currentColor);
-
+            // 计算一次空位
+            const emptyPositions = this.getEmptyPositions(boardCopy);
+            const posStats = new PositionCoverageStats(pos, emptyPositions);
             //去除缓存，因为反应变慢，也没有命中缓存
             //  const boardKey = JSON.stringify(boardCopy);
             // if (this.simulationCache.has(boardKey)) {
@@ -52,9 +45,11 @@ export class MCTSAgent {
             // }
 
             let totalScore = 0;
-            for (let i = 0; i < dynamicSimulations; i++) {
+
+            for (let i = 0; i < this.dynamicSimulations; i++) {
                 const simBoard = JSON.parse(JSON.stringify(boardCopy));
-                const winner = this.simulateGame(simBoard, opponentColor, currentColor, evaluatePositionsFn, dynamicDepth);
+                const winner = this.simulateGame(simBoard, opponentColor, currentColor, evaluatePositionsFn, posStats);
+
                 if (winner === currentColor) {
                     totalScore += 1;
                 } else if (winner === opponentColor) {
@@ -64,10 +59,19 @@ export class MCTSAgent {
                 }
             }
 
-            const avg = totalScore / dynamicSimulations;
-            // this.simulationCache.set(boardKey, avg);
+            const avg = totalScore / this.dynamicSimulations;
             scores.set(JSON.stringify(pos), avg);
-            debugLog(CONFIG.DEBUG, `${currentColor}对${pos}进行${dynamicSimulations}次MCTS模拟，每次模拟放置${dynamicDepth}颗棋子，得分:`, avg,);
+            // Clear firstTurnCache after completing simulations for this position
+            this.firstTurnCache.clear();
+
+            // 每个位置模拟结束后立即输出其统计信息
+            const coverage = posStats.getCoverageStats();
+            debugLog(CONFIG.DEBUG, `对${currentColor}方${pos}进行${this.dynamicSimulations}次MCTS模拟，平均得分= ${avg.toFixed(4)}，总空位数: ${coverage.totalEmpty}，已使用空位数: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
+${coverage.coverageRate < 100 ? 
+`- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}\n` : 
+                    '- 所有空位都被使用！'
+}
+--------------`);
         }
 
         let bestScore = -Infinity;
@@ -80,108 +84,11 @@ export class MCTSAgent {
                 bestPlaces.push(JSON.parse(key));
             }
         }
-        // 如果存在多个同分位置，根据 WEIGHTS 选择权重最大的位置
-        if (bestPlaces.length > 1) {
-            // 先找最大权重
-            let maxWeight = -Infinity;
-            bestPlaces.forEach(pos => {
-                const [row, col] = pos;
-                const weight = WEIGHTS[row][col];
-                if (weight > maxWeight) maxWeight = weight;
-            });
-            // 再筛选所有等于最大权重的位置
-            bestPlaces = bestPlaces.filter(pos => {
-                const [row, col] = pos;
-                return WEIGHTS[row][col] === maxWeight;
-            });
-        }
 
-        bestPlaces.forEach(pos => {
-            finalPositions.push({
-                action: 'placing',
-                position: pos
-            });
-        });
-        debugLog(CONFIG.DEBUG, `${currentColor}得分=${bestScore}的最佳落子位置:`, bestPlaces);
-
-        return finalPositions;
+        return bestPlaces;
     }
 
-    checkImmediateWin(currentBoard, currentColor, opponentColor, evaluatePositionsFn, availablePositions, extraMoves) {
-        const finalPositions = [];
-        let { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(currentBoard, currentColor, opponentColor, availablePositions);
 
-        // 1、优先判断放置在己方棋子周围是否会组成阵型
-        if (bestSelfPosition && !extraMoves > 0) {
-            if (Array.isArray(bestSelfPosition[0])) {
-                // 处理多个相等位置的情况
-                bestSelfPosition.forEach(pos => {
-                    finalPositions.push({
-                        action: 'placing',
-                        position: pos
-                    });
-                });
-            } else {
-                finalPositions.push({
-                    action: 'placing',
-                    position: bestSelfPosition
-                });
-            }
-            return finalPositions;
-        }
-
-        // 2、处理对方可能的位置
-        if (bestOpponentPosition) {
-            if (Array.isArray(bestOpponentPosition[0])) {
-                // 处理多个相等位置的情况
-                bestOpponentPosition.forEach(pos => {
-                    finalPositions.push({
-                        action: 'placing',
-                        position: pos
-                    });
-                });
-            } else {
-                finalPositions.push({
-                    action: 'placing',
-                    position: bestOpponentPosition
-                });
-            }
-            return finalPositions;
-        }
-
-        return [];
-    }
-    playFixedSimulation(board, player, opponent, evaluatePositionsFn, maxTurns) {
-        let current = player;
-        let other = opponent;
-        for (let t = 0; t < maxTurns; t++) {
-            const availablePositions = new Set();
-            const { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(board, current, other, availablePositions);
-
-            if (bestSelfPosition) {
-                const move = Array.isArray(bestSelfPosition[0]) ? this.pickRandom(bestSelfPosition) : bestSelfPosition;
-                this.applyPlace(board, move, current);
-                return current === this.currentPlayer ? current : other;
-            }
-
-            const options = Array.from(availablePositions).map(p => JSON.parse(p));
-            if (options.length === 0) break;
-
-            const strategic = options.find(pos => {
-                const simBoard = JSON.parse(JSON.stringify(board));
-                this.applyPlace(simBoard, pos, current);
-                const { bestSelfPosition } = evaluatePositionsFn(simBoard, current, other, new Set());
-                return bestSelfPosition != null;
-            });
-
-            const move = strategic || this.pickRandom(options);
-            this.applyPlace(board, move, current);
-            [current, other] = [other, current];
-        }
-
-        const winner = this.estimateWinner(board);
-        return winner;
-    }
     /**
      * 模拟游戏进行若干步，返回赢家
      * @param {Array} board 当前棋盘
@@ -190,18 +97,48 @@ export class MCTSAgent {
      * @param {Function} evaluatePositionsFn 评估函数（需生成下一步可落子位置）
      * @returns {string} 胜利者颜色或'draw'
      */
-    simulateGame(board, player, opponent, evaluatePositionsFn, dynamicDepth = this.maxDepth) {
+    simulateGame(board, player, opponent, evaluatePositionsFn, boardStats) {
         let turn = 0;
-        while (turn < dynamicDepth) {
+        while (turn < this.dynamicDepth) {
             const availablePositions = new Set();
-            const { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(board, player, opponent, availablePositions);
+            let bestSelfPosition, bestOpponentPosition;  // 添加变量声明
+            // 第一轮使用缓存
+            if (turn === 0) {
+                const boardKey = JSON.stringify(board);
+                if (!this.firstTurnCache.has(boardKey)) {
+                    // 首次计算时缓存结果
+                    const result = evaluatePositionsFn(board, player, opponent, availablePositions);
+                    bestSelfPosition = result.bestSelfPosition;       // 使用结果中的值
+                    bestOpponentPosition = result.bestOpponentPosition; // 使用结果中的值
+                    this.firstTurnCache.set(boardKey, {
+                        positions: Array.from(availablePositions),
+                        bestSelf: bestSelfPosition,
+                        bestOpponent: bestOpponentPosition
+                    });
+                } else {
+                    // 使用缓存
+                    const cached = this.firstTurnCache.get(boardKey);
+                    cached.positions.forEach(pos => availablePositions.add(pos));
+                    bestSelfPosition = cached.bestSelf;
+                    bestOpponentPosition = cached.bestOpponent;
+                    debugLog(false, `使用第一轮缓存: ${availablePositions.size}个可用位置`);
+                }
+            } else {
+                // 后续轮次正常计算
+                const result = evaluatePositionsFn(board, player, opponent, availablePositions);
+                bestSelfPosition = result.bestSelfPosition;
+                bestOpponentPosition = result.bestOpponentPosition;
+            }
 
             // 处理己方最佳位置数组
             if (bestSelfPosition) {
-                // 如果是数组的数组，说明有多个相等的最佳位置
-                // const move = Array.isArray(bestSelfPosition[0]) ? this.pickRandom(bestSelfPosition) : bestSelfPosition;
-                // this.applyPlace(board, move, player);
-                debugLog(false, `${player}选择最佳位置:`, bestSelfPosition);
+                if (!Array.isArray(bestSelfPosition[0])) {
+                    move = bestSelfPosition;
+                    if (CONFIG.DEBUG) {
+                        boardStats.recordUsed(move);
+                    }
+                }
+                debugLog(false, `第${turn}颗棋子后返回bestSelfPosition:`,bestSelfPosition);
                 return player;
             }
 
@@ -210,14 +147,21 @@ export class MCTSAgent {
             if (bestOpponentPosition) {
                 if (Array.isArray(bestOpponentPosition[0])) {
                     // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
+                    debugLog(false, `第${turn}颗棋子后返回bestOpponentPosition:`,bestOpponentPosition);
                     return opponent;
                 }
                 move = bestOpponentPosition;
             } else {
-                const options = Array.from(availablePositions).map(p => JSON.parse(p));
+                const options = Array.from(availablePositions).map(p =>
+                    typeof p === 'string' ? JSON.parse(p) : p
+                );
                 if (options.length === 0) break;
 
                 move = this.pickRandom(options);
+            }
+            // 记录本次使用的位置
+            if (move && CONFIG.DEBUG) {
+                boardStats.recordUsed(move);
             }
 
             this.applyPlace(board, move, player);
@@ -235,11 +179,11 @@ export class MCTSAgent {
 
         if (bestOpponentPosition && Array.isArray(bestOpponentPosition[0])) {
             // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-               
+
             debugLog(false, `${player}的最佳位置:`, bestSelfPosition, '对手的最佳位置:', bestOpponentPosition);
             return 0;
         }
-        
+
         let threatBonus = bestSelfPosition ? 0.2 : 0;
         let dangerPenalty = bestOpponentPosition ? -0.2 : 0;
         let score = 0.5 + threatBonus + dangerPenalty;
@@ -372,5 +316,59 @@ export class MCTSAgent {
     clearUsedPositions() {
         this.usedPositions.clear();
     }
+
+    getEmptyPositions(board) {
+        const emptyPositions = new Set();
+        for (let row = 0; row < board.length; row++) {
+            for (let col = 0; col < board[row].length; col++) {
+                if (!board[row][col]) {
+                    emptyPositions.add(JSON.stringify([row, col]));
+                }
+            }
+        }
+        return emptyPositions;
+    }
 }
 
+class PositionCoverageStats {
+    constructor(targetPos, emptyPositions) {
+        this.targetPos = targetPos;
+        this.emptyPositions = emptyPositions;  // 直接使用传入的空位集合
+        this.usedPositions = new Map();
+    }
+
+    initEmptyPositions(board) {
+        for (let row = 0; row < board.length; row++) {
+            for (let col = 0; col < board[row].length; col++) {
+                if (!board[row][col]) {
+                    this.emptyPositions.add(JSON.stringify([row, col]));
+                }
+            }
+        }
+    }
+
+    recordUsed(position) {
+        const posStr = typeof position === 'string' ? position : JSON.stringify(position);
+        const count = this.usedPositions.get(posStr) || 0;
+        this.usedPositions.set(posStr, count + 1);
+    }
+
+    getCoverageStats() {
+        const covered = new Set(this.usedPositions.keys());
+        const uncovered = new Set(
+            [...this.emptyPositions].filter(x => !covered.has(x))
+        );
+
+        return {
+            targetPos: this.targetPos,
+            totalEmpty: this.emptyPositions.size,
+            coveredCount: covered.size,
+            coverageRate: (covered.size / Math.max(1, this.emptyPositions.size) * 100).toFixed(2),
+            uncoveredPositions: Array.from(uncovered),
+            positionUsage: Object.fromEntries(
+                Array.from(this.usedPositions.entries())
+                    .sort(([, a], [, b]) => b - a)
+            )
+        };
+    }
+}

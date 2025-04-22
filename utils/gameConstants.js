@@ -101,5 +101,25 @@ export const CONFIG = {
                 apiKey: ''
               }
         }
-    },// 其他全局配置...
+    },
+    MCTS_CONFIG: {
+        easy: {
+            minDepth: 1,
+            maxDepth: 5,
+            minSimulations: 10,
+            maxSimulations: 50,
+        },
+        medium: {
+            minDepth: 1,
+            maxDepth: 10,
+            minSimulations: 10,
+            maxSimulations: 100,
+        },
+        hard: {
+            minDepth: 1,
+            maxDepth: 15,
+            minSimulations: 10,
+            maxSimulations: 150,
+        },
+    }, // 其他全局配置...
 };
