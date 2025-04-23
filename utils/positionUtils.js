@@ -1169,11 +1169,11 @@ function getValidRemovePositions2(currentColor, opponentColor, data) {
                     equalPositions.push([row, col]);
                     debugLog(CONFIG.DEBUG, `2-${currentColor}自己可能形成阵型的位置有多个bestSelfPosition:`, equalPositions);
                 }
-
+            }
                 //如果移除不能阻止对方形成阵型，也不能自己组成阵型，则判断该棋子下一次移动后是否方便组成阵型
                 nonFormationPieces.push(piece);
 
-            }
+            
         }
 
         // 按优先级返回结果
@@ -1214,9 +1214,10 @@ function handleNormalRemove(nonFormationPieces, diagonalOrDragonPieces, board, c
         validPositions.push(...diagonalOrDragonPieces);
     }
 
+    
     // 优先选择可移动的棋子
     const movablePositions = validPositions.filter(pos => canMove(pos[0], pos[1], board));
-
+    debugLog(CONFIG.DEBUG,'validPositions=',movablePositions);
     if (movablePositions.length > 0) {
         let finalPositions = [];
         movablePositions.forEach(pos => {
@@ -1397,18 +1398,22 @@ function getValidMoves(currentColor, opponentColor, data) {
         const maxReward = Math.max(...moves.selfFormationMoves.map(m => m.value));
         const maxRewardMoves = moves.selfFormationMoves.filter(m => m.value === maxReward);
         // 在奖励最大的中再选给对方机会最少的
-        finalMove = selectBestMoves(maxRewardMoves, 'giveOpponent', true)[0];
-        debugLog(CONFIG.DEBUG, `选择己方阵型移动:`, finalMove);
-        return [finalMove];
+        const bestMoves = selectBestMoves(maxRewardMoves, 'giveOpponent', true);
+        if (bestMoves.length > 0) {
+            debugLog(CONFIG.DEBUG, `选择己方阵型移动:`, bestMoves[0]);
+            return [bestMoves[0]];
+        }
     }
 
     // 2. 可以阻止对方且给对方带来机会最少的移动
     if (moves.preventOpponentMoves.length > 0) {
         const preventMoves = moves.preventOpponentMoves.filter(m => m.preventValue > m.giveOpponent);
         if (preventMoves.length > 0) {
-            finalMove = selectBestMoves(preventMoves, 'preventValue')[0];
-            debugLog(CONFIG.DEBUG, `选择阻止对方移动:`, finalMove);
-            return [finalMove];
+            const bestMoves = selectBestMoves(preventMoves, 'preventValue');
+        if (bestMoves.length > 0) {
+            debugLog(CONFIG.DEBUG, `选择阻止对方移动:`, bestMoves[0]);
+            return [bestMoves[0]];
+        }
         }
     }
 
@@ -1418,27 +1423,27 @@ function getValidMoves(currentColor, opponentColor, data) {
         // 1. 先找出可以下次移动形成阵型的位置
         const nextFormationMoves = moves.safeMoves.filter(m => m.nextMoveFormations.canFormFormation);
         if (nextFormationMoves.length > 0) {
-            // 选择能获得最多奖励的位置
-            return selectBestMoves(nextFormationMoves, 'nextMoveFormations.maxReward');
+            const bestMoves = selectBestMoves(nextFormationMoves, 'nextMoveFormations.maxReward');
+            if (bestMoves.length > 0) return bestMoves;
         }
 
-        // 2. 再找出对方想要的位置
         const opponentDesireMoves = moves.safeMoves.filter(m => m.opponentDesire.isDesired);
         if (opponentDesireMoves.length > 0) {
-            // 选择对方最想要的位置(可形成最多阵型的位置)
-            return selectBestMoves(opponentDesireMoves, 'opponentDesire.formationCount');
+            const bestMoves = selectBestMoves(opponentDesireMoves, 'opponentDesire.formationCount');
+            if (bestMoves.length > 0) return bestMoves;
         }
 
-        // 3. 最后根据邻接棋子数量选择
-        return selectBestMoves(moves.safeMoves, 'adjacentInfo.totalAdjacent');
+        const bestMoves = selectBestMoves(moves.safeMoves, 'adjacentInfo.totalAdjacent');
+        if (bestMoves.length > 0) return bestMoves;    
     }
 
 
     // 4. 最后选择给对方带来机会最少的移动
     if (moves.worstMoves.length > 0) {
-        return selectBestMoves(moves.worstMoves, 'giveOpponent', true);
+        const bestMoves = selectBestMoves(moves.worstMoves, 'giveOpponent', true);
+        if (bestMoves.length > 0) return bestMoves;
     }
-
+    debugLog(CONFIG.DEBUG, '没找到有效位置', moves);
     return [];
 }
 
