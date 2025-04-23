@@ -16,9 +16,9 @@ export class MCTSAgent {
      * 获取最佳落子位置
      * @param {string} currentColor 当前玩家颜色
      * @param {string} opponentColor 对手颜色
-     * @param {Array} possiblePositions 所有可能的落子位置
      * @param {Array} currentBoard 当前棋盘状态
      * @param {Function} evaluatePositionsFn 用于评估局势的方法
+     * @param {Set} availablePositions 所有可能的落子位置
      * @returns {Array} 最佳位置
      */
 
@@ -55,7 +55,7 @@ export class MCTSAgent {
                 } else if (winner === opponentColor) {
                     totalScore += 0;
                 } else {
-                    totalScore += this.evaluateBoardScore(simBoard, currentColor, opponentColor, evaluatePositionsFn);
+                    totalScore += 0.5;
                 }
             }
 
@@ -67,11 +67,7 @@ export class MCTSAgent {
             // 每个位置模拟结束后立即输出其统计信息
             const coverage = posStats.getCoverageStats();
             debugLog(CONFIG.DEBUG, `对${currentColor}方${pos}进行${this.dynamicSimulations}次MCTS模拟，平均得分= ${avg.toFixed(4)}，总空位数: ${coverage.totalEmpty}，已使用空位数: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
-${coverage.coverageRate < 100 ? 
-`- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}\n` : 
-                    '- 所有空位都被使用！'
-}
---------------`);
+${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`);
         }
 
         let bestScore = -Infinity;
@@ -179,7 +175,6 @@ ${coverage.coverageRate < 100 ?
 
         if (bestOpponentPosition && Array.isArray(bestOpponentPosition[0])) {
             // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-
             debugLog(false, `${player}的最佳位置:`, bestSelfPosition, '对手的最佳位置:', bestOpponentPosition);
             return 0;
         }
@@ -208,33 +203,7 @@ ${coverage.coverageRate < 100 ?
         const [row, col] = pos;
         board[row][col] = null;
     }
-    /**
-     * 根据棋盘当前状态估算赢家（用于平局判定）
-     * @param {Array} board 当前棋盘
-     * @returns {string} 胜者颜色或'draw'
-     */
-    estimateWinner(board) {
-        const { black, white } = this.countStones(board);
-        return black > white ? 'black' : white > black ? 'white' : 'draw';
-    }
-
-    countStones(board) {
-        let black = 0, white = 0;
-        for (let row of board) {
-            for (let cell of row) {
-                if (cell?.color === 'black') black++;
-                if (cell?.color === 'white') white++;
-            }
-        }
-        return { black, white };
-    }
-    estimateScore(board, player, opponent, evaluatePositionsFn) {
-        const available = new Set();
-        const { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(board, player, opponent, available);
-        if (bestSelfPosition && !bestOpponentPosition) return 1;
-        if (!bestSelfPosition && bestOpponentPosition) return 0;
-        return 0.5;
-    }
+ 
     /**
      * 从数组中选择一个未使用的随机元素
      * @param {Array} array 候选数组

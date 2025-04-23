@@ -683,32 +683,37 @@ Page({
         const { targetRow, targetCol } = targetPosition;
         // 更新棋盘状态
         const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
-        const formationUpdate = checkFormation(targetRow, targetCol, currentColor, newBoard);
 
         // 计算更新数据
         let updateData = {
             board: newBoard,
             [`${currentColor}Count`]: this.data[`${currentColor}Count`] + 1,
         };
-        if (formationUpdate) {
-            this.updateFormationStatus(formationUpdate, newBoard);
+        if (this.data[`${currentColor}Count`] >= CONFIG.MIN_PIECES_TO_WIN - 1) {
+            const formationUpdate = checkFormation(targetRow, targetCol, currentColor, newBoard);
+            if (formationUpdate) {
+                this.updateFormationStatus(formationUpdate, newBoard);
 
-            // 显示提示
-            this.showMessage('形成了' + formationUpdate.formationType);
-            Object.assign(updateData, formationUpdate);
-            updateData.lastActionResult = `你上次落子的位置[${targetRow},${targetCol}]形成了'${formationUpdate.formationType}'阵型，获得了${formationUpdate.extraMoves}次额外落子机会。`;
-        }
-        // 处理特殊情况
-        if (this.isBoardWillFull()) {
-            Object.assign(updateData, {
-                extraMoves: 1,
-                message: `请移除${this.data.currentPlayer === 1 ? '黑方' : '白方'}棋子`,
-                isExchangeRemoving: true
-            });
-        } else if (this.data.extraMoves > 0) {
-            updateData.extraMoves = this.data.extraMoves - 1;
-            if (updateData.extraMoves === 0) updateData.currentPlayer = 1 - this.data.currentPlayer;
-        } else if (!formationUpdate) {
+                // 显示提示
+                this.showMessage('形成了' + formationUpdate.formationType);
+                Object.assign(updateData, formationUpdate);
+                updateData.lastActionResult = `你上次落子的位置[${targetRow},${targetCol}]形成了'${formationUpdate.formationType}'阵型，获得了${formationUpdate.extraMoves}次额外落子机会。`;
+            }
+            // 处理特殊情况
+            if (this.isBoardWillFull()) {
+                Object.assign(updateData, {
+                    extraMoves: 1,
+                    message: `请移除${this.data.currentPlayer === 1 ? '黑方' : '白方'}棋子`,
+                    isExchangeRemoving: true
+                });
+            } else if (this.data.extraMoves > 0) {
+                updateData.extraMoves = this.data.extraMoves - 1;
+                if (updateData.extraMoves === 0) updateData.currentPlayer = 1 - this.data.currentPlayer;
+            } else if (!formationUpdate) {
+                updateData.currentPlayer = 1 - this.data.currentPlayer;
+            }
+        } else {
+            // 己方第一颗和第二颗棋子，直接切换玩家
             updateData.currentPlayer = 1 - this.data.currentPlayer;
         }
 
