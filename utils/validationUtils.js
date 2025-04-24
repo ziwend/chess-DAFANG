@@ -1,5 +1,5 @@
 import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces } from './formationChecker.js';
-import { deepCopy,canPlace } from './boardUtils.js';
+import { canPlace } from './boardUtils.js';
 import { CONFIG } from './gameConstants.js';
 import { FORMATION_POSITIONS } from './formationPositions.js';
 export function validatePosition(position, type, color, board) {
@@ -71,12 +71,14 @@ export function isRepeatingMove(aicolor, decision, data) {
     if (!isSameMove) return false;
 
     // 模拟移动
-    let tempBoard = deepCopy(data.board);
+    let tempBoard = data.board;
     tempBoard[decision.position[0]][decision.position[1]] = null;
     tempBoard[decision.newPosition[0]][decision.newPosition[1]] = { color: aicolor, isFormation: false };
     // 检查是否形成阵型或获得额外吃子机会
     const formationUpdate = checkFormation(decision.newPosition[0], decision.newPosition[1], aicolor, tempBoard);
-    tempBoard = null;
+    // 恢复棋盘状态
+    tempBoard[decision.position[0]][decision.position[1]] = { color: aicolor, isFormation: false };
+    tempBoard[decision.newPosition[0]][decision.newPosition[1]] = null;
     // 如果移动对棋盘有积极影响，允许重复移动
     return !formationUpdate;
 }
