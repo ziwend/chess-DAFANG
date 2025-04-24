@@ -369,13 +369,9 @@ function evaluatePlaceAndRemoveReward(bestPlaces, board, currentColor, opponentC
                     debugLog(false, `跳过阵型中的棋子 [${r},${c}]`);
                     continue;
                 }
-                // 模拟移除对方棋子的己方收益，恢复时要恢复成对方的棋子，如下function中默认r,c是null
+                // 模拟移除对方棋子r, c的己方收益，恢复时要恢复成对方的棋子
                 const reward = getMaxFormationRewardAfterMove(r, c, currentColor, board);
-                // 恢复棋盘对方r,c
-                board[r][c] = {
-                    color: opponentColor,
-                    isFormation: false
-                };
+
                 if (reward.maxExtraMoves > 0) {
                     currentTotalExtraMoves += reward.maxExtraMoves;
                 }
@@ -462,7 +458,7 @@ function filterPositionsByAdjacentPieces(positions, board, currentColor, opponen
     return filteredPositions.map(p => p.position);
 }
 /**
- * 计算指定棋子周边的棋子移动到该位置后可获得的最大奖励
+ * 计算指定位置周边的color棋子移动到该位置后可获得的最大奖励
  * @param {number} r - 目标位置行
  * @param {number} c - 目标位置列
  * @param {string} color - 棋子颜色
@@ -474,6 +470,13 @@ function getMaxFormationRewardAfterMove(r, c, color, board) {
     let maxFormationPositions = [];
     let fromPosition = null;  // 记录移动的源棋子位置
 
+    let initialPieceColor = null;
+    let initialPieceFormatiion = false;
+    if (board[r][c]) {
+        initialPieceColor = board[r][c].color;
+        initialPieceFormatiion = board[r][c].isFormation
+    }
+
     // 检查周围所有可能移动到该位置的己方棋子
     for (const dir of DIRECTIONS.ADJACENT) {
         const srcRow = r + dir.dx;
@@ -483,13 +486,11 @@ function getMaxFormationRewardAfterMove(r, c, color, board) {
 
         if (hasValidPiece(srcRow, srcCol, board) !== color) continue;
 
+        // 暂存srcRow, srcCol棋子状态
+        const formationFlag = board[srcRow][srcCol].isFormation;
+
         // 模拟移动
         board[srcRow][srcCol] = null;
-        board[r][c] = {
-            color: color,  // 确保设置 color
-            isFormation: false
-        };
-
         // 检查是否形成有效阵型
         const formation = checkFormation(r, c, color, board);
         if (formation && formation.extraMoves > maxExtraMoves) {
@@ -500,8 +501,17 @@ function getMaxFormationRewardAfterMove(r, c, color, board) {
         // 恢复棋盘状态
         board[srcRow][srcCol] = {
             color: color,  // 确保设置 color
-            isFormation: false
+            isFormation: formationFlag
         };
+        
+    }
+
+    if (initialPieceColor) { // 恢复记录的原始棋子状态
+        board[r][c] = {
+            color: initialPieceColor,  // 确保设置 color
+            isFormation: initialPieceFormatiion
+        };
+    } else {
         board[r][c] = null;
     }
 
@@ -512,9 +522,8 @@ function getMaxFormationRewardAfterMove(r, c, color, board) {
     };
 }
 function getValidRemovePositions(currentColor, opponentColor, data) {
-    const { board, blackCount, whiteCount, isExchangeRemoving } = data;
+    const { board, isExchangeRemoving } = data;
     const isFirstRemove = isExchangeRemoving;
-    const isSecondRemove = isBoardWillFull(blackCount, whiteCount);
     const nonFormationPieces = [];
     const diagonalOrDragonPieces = [];
     const squarePositions = [];
@@ -539,20 +548,22 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
 
             // TODO 该棋子在阵型中，先不考虑特殊场景，不能移除
             if (!board[row][col].isFormation) {
+                // 对方的最佳移动棋子有可能在阵型中
+                const initialPieceFormatiion = board[row][col].isFormation;
                 board[row][col] = null; // 移除对方棋子
                 // 2. 对空位计算最大奖励
                 const reward = getMaxFormationRewardAfterMove(toRow, toCol, opponentColor, board);
                 // 恢复棋盘状态
                 board[row][col] = {
                     color: opponentColor,
-                    isFormation: false
+                    isFormation: initialPieceFormatiion
                 };
                 if (reward.maxExtraMoves < maxThreat_reward) {
                     maxOpponentExtraMoves = maxThreat_reward - reward.maxExtraMoves;
                     bestOpponentPosition = [row, col]; // 记录破坏对方阵型的最佳位置
                 }
             }
-
+            debugLog(CONFIG.DEBUG, 'formationPositions-board',board);
             // 还要对比一下阵型中的棋子移除能否达到更好的破坏效果，或者是相同的效果
             for (const pos of totalRewardResult.maxThreat.formationPositions) {
                 const [newRow, newCol] = pos;
@@ -564,7 +575,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
 
                 board[newRow][newCol] = null; // 移除对方棋子newRow, newCol计算对空位toRow, toCol的影响
                 const rewardAfterRemove = getMaxFormationRewardAfterMove(toRow, toCol, opponentColor, board);
-                // 恢复棋盘状态
+                // 恢复对方棋子状态
                 board[newRow][newCol] = {
                     color: opponentColor,
                     isFormation: false
@@ -588,16 +599,9 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     }
                     // 说明新位置和旧位置周围都有对方棋子，或者都没有对方棋子，则需要进一步对比，比如对比下移除新旧位置后己方能否形成阵型及获得的最大吃子数
                     const rewardAfterRemoveOld = getMaxFormationRewardAfterMove(oldRow, oldCol, currentColor, board);
-                    // 新旧位置都是对方的棋子，需要恢复
-                    board[oldRow][oldCol] = {
-                        color: opponentColor,
-                        isFormation: false
-                    };
+
                     const rewardAfterRemoveNew = getMaxFormationRewardAfterMove(newRow, newCol, currentColor, board);
-                    board[newRow][newCol] = {
-                        color: opponentColor,
-                        isFormation: false
-                    };
+                    debugLog(CONFIG.DEBUG, 'getMaxFormationRewardAfterMove-board',board);
                     if (rewardAfterRemoveOld.maxExtraMoves > rewardAfterRemoveNew.maxExtraMoves) {
                         // 说明旧位置移除后己方能形成阵型及获得的最大吃子数更多，则旧位置更优
                         continue;
@@ -612,7 +616,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                             board,
                             opponentColor
                         );
-
+                        debugLog(CONFIG.DEBUG, 'comparePositionsImpact-board',board);
                         if (impactComparison > 0) {
                             bestOpponentPosition = pos;
                         } else if (impactComparison === 0) {
@@ -624,7 +628,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                     // bestOpponentPosition = pos;
                 }
             }
-
+debugLog(CONFIG.DEBUG, 'bestOpponentPosition-board',board);
             if (bestOpponentPosition && !isFirstRemove) {
                 return [{
                     action: 'removing',
@@ -694,7 +698,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                 // 第一次移除时，优先考虑移除后己方可以获得的吃子机会，即吃掉对方获得的吃子机会，不追求最大值，但要求对方移除一颗棋子后不能完全破坏阵型
                 // 比如，移除对方第一个位置可以吃5颗子，但是对方移除1颗己方棋子就被破坏了，净剩为0，而移除第二个位置，可以吃2颗棋子，对方移除1颗己方棋子后，己方还是能吃1颗，则选第二个位置
 
-                // 评估所有可能的移除位置
+                // 评估所有可能的对方棋子row, col
                 const evaluation = evaluateFirstRemovePosition(row, col, board, currentColor, opponentColor);
                 if (evaluation.isValid) {
                     evaluations.push(evaluation);
@@ -705,13 +709,9 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
                 continue;
             }
 
-            // 模拟移除row,col
+            // 模拟移除对方棋子row,col
             const formationAfterRemove = getMaxFormationRewardAfterMove(row, col, currentColor, board);
-            // row,col对应棋盘上是对方棋子，需要恢复            
-            board[row][col] = {
-                color: opponentColor,
-                isFormation: false
-            };
+
             if (formationAfterRemove.maxExtraMoves > maxSelfExtraMoves) {
                 maxSelfExtraMoves = formationAfterRemove.maxExtraMoves;
                 bestSelfPosition = [row, col];
@@ -766,7 +766,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
         }
     }
 
-    // 棋盘遍历结束，按净收益降序对己方可以形成阵型的位置进行排序
+    // 棋盘遍历结束，按净收益降序对己方可以形成阵型的位置进行排序，仅用于第一次移除
     if (evaluations.length > 0) {
         evaluations.sort((a, b) => b.netReward - a.netReward);
         // 找出净收益最大的所有位置
@@ -776,7 +776,7 @@ function getValidRemovePositions(currentColor, opponentColor, data) {
         debugLog(CONFIG.DEBUG, `首次移除评估结果:
                         - 候选位置数: ${evaluations.length}
                         - 最大净收益: ${maxNetReward}
-                        - 最佳位置数: ${bestPositions.length}`);
+                        - 最佳位置数: `,bestPositions);
 
         bestSelfPosition = filterBestPositionsInFirstRemove(bestPositions, board, currentColor, opponentColor);
 
@@ -923,16 +923,10 @@ function comparePositionsImpact(oldPos, newPos, board, color) {
  * @returns {Object} 评估结果
  */
 function evaluateFirstRemovePosition(row, col, board, currentColor, opponentColor) {
-    // 1. 首先评估移除该位置后己方能获得的最大吃子数
+    // 1. 首先评估移除row,col对应对方棋子后己方能获得的最大吃子数
     const initialReward = getMaxFormationRewardAfterMove(row, col, currentColor, board);
-    // row,col对应对方棋子，需要在函数return前恢复棋盘状态
 
     if (initialReward.maxExtraMoves === 0) {
-        // 模拟移除row,col对方棋子后，需要在最后恢复棋盘状态
-        board[row][col] = {
-            color: opponentColor,
-            isFormation: false
-        };
         return {
             position: [row, col],
             initialReward: 0,
@@ -961,6 +955,9 @@ function evaluateFirstRemovePosition(row, col, board, currentColor, opponentColo
 
         if (hasValidPiece(fRow, fCol, board) !== currentColor) continue;
 
+        // TODO 如果己方这颗棋子已经在阵型中则不能移除，除非自己所有旗子都在阵型中,由于首次这样的概率很低，暂不考虑
+        if (board[fRow][fCol].isFormation) continue;
+
         // 模拟对方移除己方这颗棋子fRow][fCol        
         board[fRow][fCol] = null;
 
@@ -982,12 +979,6 @@ function evaluateFirstRemovePosition(row, col, board, currentColor, opponentColo
 
         }
     }
-
-    // 模拟移除row,col对方棋子后，需要在最后恢复棋盘状态
-    board[row][col] = {
-        color: opponentColor,
-        isFormation: false
-    };
 
     return {
         position: [row, col],
@@ -1213,6 +1204,7 @@ function getValidMoves(currentColor, opponentColor, data) {
                 debugLog(false, `\n评估己方棋子移动到空位: [${row},${col}] -> [${newRow},${newCol}]`);
 
                 const evaluation = evaluateMoveValue(row, col, newRow, newCol, currentColor, opponentColor, board);
+
                 debugLog(false, `移动评估结果:`, {
                     自己形成阵型: evaluation.selfFormation,
                     可阻止对方: evaluation.preventOpponent,
@@ -1249,7 +1241,7 @@ function getValidMoves(currentColor, opponentColor, data) {
                 // 3. 检查是否是安全移动
                 if (moves.selfFormationMoves.length === 0 && moves.preventOpponentMoves.length === 0 && evaluation.giveOpponent === 0) {
 
-                    // 1. 评估移动后是否能在下次移动形成阵型
+                    // 1. 评估移动row, col对应己方旗子到空位newRow, newCol后是否能在下次移动形成阵型
                     const nextMoveFormations = evaluateNextMoveFormations(row, col, newRow, newCol, currentColor, opponentColor, board);
 
                     // 2. 评估这个位置是否是对方想要的位置
@@ -1346,9 +1338,10 @@ function getValidMoves(currentColor, opponentColor, data) {
 function evaluateNextMoveFormations(fromRow, fromCol, toRow, toCol, currentColor, opponentColor, board) {
     let canFormFormation = false;
     let maxReward = 0;
-    // 先模拟移动到该位置
+    // 记录要移动的棋子阵型状态
+    const initialPieceFormatiion = board[fromRow][fromCol].isFormation;
+    // 先模拟移动该位置
     board[fromRow][fromCol] = null;
-    board[toRow][toCol] = { color: currentColor, isFormation: false };
 
     // 检查周围的空位
     for (const dir of DIRECTIONS.ADJACENT) {
@@ -1357,7 +1350,7 @@ function evaluateNextMoveFormations(fromRow, fromCol, toRow, toCol, currentColor
 
         if (!isInBoard(nextRow, nextCol) || board[nextRow][nextCol] !== null) continue;
 
-        // 对空位nextRow, nextCol计算最大收益
+        // 对空位nextRow, nextCol放置己方棋子计算最大收益
         const formation = getMaxFormationRewardAfterMove(nextRow, nextCol, currentColor, board);
         if (formation.maxExtraMoves > 0) {
             canFormFormation = true;
@@ -1366,8 +1359,7 @@ function evaluateNextMoveFormations(fromRow, fromCol, toRow, toCol, currentColor
     }
 
     // 恢复棋盘状态
-    board[toRow][toCol] = null;
-    board[fromRow][fromCol] = { color: currentColor, isFormation: false };
+    board[fromRow][fromCol] = { color: currentColor, isFormation: initialPieceFormatiion };// from有可能是本来在阵型中的旗子
 
     return { canFormFormation, maxReward };
 }
@@ -1426,26 +1418,25 @@ function selectBestMoves(moves, keyPath, minimum = false) {
         .map(m => m.move);
 }
 /**
- * 评估一个移动的价值
+ * 评估一个己方棋子row, col移动的价值
  */
 function evaluateMoveValue(row, col, newRow, newCol, currentColor, opponentColor, board) {
     // 1. 检查移动到空位 newRow, newCol后能阻止多少对方吃子，对方吃子是基于移动前的棋盘的
     const preventResult = getMaxFormationRewardAfterMove(newRow, newCol, opponentColor, board);
     const preventOpponent = preventResult.maxExtraMoves;
 
+    const initialPieceFormatiion = board[row][col].isFormation;
+
     board[row][col] = null;
-    board[newRow][newCol] = { color: currentColor, isFormation: false };
     const formation = checkFormation(newRow, newCol, currentColor, board);
     // 恢复棋盘状态
-    board[newRow][newCol] = null;
+    board[row][col] = { color: currentColor, isFormation: initialPieceFormatiion };
 
     // 2. 检查移动到新位置是否会形成己方阵型
     const selfFormation = formation ? formation.extraMoves : 0;
 
-    // 3. 检查移动后给对方带来的吃子机会
-    const giveResult = getMaxFormationRewardAfterMove(row, col, currentColor, board);
-    // row,col对应的为己方棋子
-    board[row][col] = { color: currentColor, isFormation: false };
+    // 3. 检查移动对方棋子到row,col对应的为己方棋子位置后给对方带来的吃子机会
+    const giveResult = getMaxFormationRewardAfterMove(row, col, opponentColor, board);
 
     const giveOpponent = giveResult.maxExtraMoves;
     return {
