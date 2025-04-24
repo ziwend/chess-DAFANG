@@ -80,6 +80,7 @@ export const CONFIG = {
         MOVING: 'moving',
         REMOVING: 'removing'
     },
+    BOARD_SIZE: 6,
     MIN_PIECES_TO_WIN: 3,
     MAX_PIECES_COUNT: 36,
     DEFAULT_PLAYER_CONFIG: {

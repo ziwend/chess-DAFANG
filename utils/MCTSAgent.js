@@ -1,5 +1,5 @@
 // MCTSAgent.js
-import { CONFIG, WEIGHTS } from "./gameConstants";
+import { CONFIG } from "./gameConstants";
 import { debugLog } from "./historyUtils";
 
 export class MCTSAgent {
@@ -66,8 +66,8 @@ export class MCTSAgent {
 
             // 每个位置模拟结束后立即输出其统计信息
             const coverage = posStats.getCoverageStats();
-            debugLog(CONFIG.DEBUG, `对${currentColor}方${pos}进行${this.dynamicSimulations}次MCTS模拟，平均得分= ${avg.toFixed(4)}，总空位数: ${coverage.totalEmpty}，已使用空位数: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
-${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`);
+            debugLog(CONFIG.DEBUG, `对${currentColor}方进行MCTS模拟，平均得分= ${avg.toFixed(4)}，总空位数: ${coverage.totalEmpty}，已使用空位数: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
+${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`,pos);
         }
 
         let bestScore = -Infinity;
@@ -288,8 +288,8 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
 
     getEmptyPositions(board) {
         const emptyPositions = new Set();
-        for (let row = 0; row < board.length; row++) {
-            for (let col = 0; col < board[row].length; col++) {
+        for (let row = 0; row < CONFIG.BOARD_SIZE; row++) {
+            for (let col = 0; col < CONFIG.BOARD_SIZE; col++) {
                 if (!board[row][col]) {
                     emptyPositions.add(JSON.stringify([row, col]));
                 }
@@ -307,8 +307,8 @@ class PositionCoverageStats {
     }
 
     initEmptyPositions(board) {
-        for (let row = 0; row < board.length; row++) {
-            for (let col = 0; col < board[row].length; col++) {
+        for (let row = 0; row < CONFIG.BOARD_SIZE; row++) {
+            for (let col = 0; col < CONFIG.BOARD_SIZE; col++) {
                 if (!board[row][col]) {
                     this.emptyPositions.add(JSON.stringify([row, col]));
                 }

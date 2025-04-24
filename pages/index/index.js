@@ -114,7 +114,6 @@ Page({
 
             return statistics;
         } catch (error) {
-            console.error('获取战绩失败:', error);
             wx.showToast({
                 title: '获取战绩失败',
                 icon: 'none'
@@ -1107,7 +1106,6 @@ Page({
     // 悔棋逻辑
     undoMove: function (e) {
         const color = e.currentTarget.dataset.color; // 获取悔棋的玩家颜色
-
         debugLog(CONFIG.DEBUG, `${color}方请求悔棋`);
 
         // 检查是否有历史记录可以撤销
