@@ -7,7 +7,6 @@ import { saveUserMessageToHistory, saveAssistantMessageToHistory, exportGameHist
 import { hasValidMoves, updateBoard, isMaxPiecesCount, isBoardWillFull } from '../../utils/boardUtils.js';
 import { handleAITurn } from '../../utils/aiUtils.js';
 import { validatePosition } from '../../utils/validationUtils.js';
-import { deepCopy } from '../../utils/boardUtils.js';
 import { RewardManager, RANKS } from '../../utils/rewardManager.js';
 import { cacheManager } from '../../utils/cacheManager.js';
 
@@ -229,7 +228,7 @@ Page({
 
     startGame: function () {
         const updateData = {
-            board: deepCopy(CONFIG.INITIAL_BOARD),
+            board: JSON.parse(JSON.stringify(CONFIG.INITIAL_BOARD)),
             currentPlayer: 0,            // 重置当前玩家为黑方
             dragPiece: null,            // 当前拖动的棋子信息
             blackCount: 0,            // 重置黑方棋子数量
@@ -259,7 +258,7 @@ Page({
         updateData.timer = timer;
         if (CONFIG.DEBUG) {
             // 添加用户消息到历史记录
-            const userMessage = this.saveUserMessageToHistory("placing", "black", GAMEHISTORY, '');
+            const userMessage = this.saveUserMessageToHistory(CONFIG.GAME_PHASES.PLACING, "black", GAMEHISTORY, '');
             updateData.gameHistory = userMessage.gameHistory;
         }
 
@@ -1122,7 +1121,7 @@ Page({
         // 恢复棋盘状态
         let newBoard = this.data.board;
         let updateData = {};
-        updateData.gameHistory = deepCopy(this.data.gameHistory);
+        updateData.gameHistory = JSON.parse(JSON.stringify(this.data.gameHistory));
         for (let i = this.data.gameHistory.length - 1; i >= 0; i--) {
             const record = this.data.gameHistory[i];
             // 找到对应的 role=assistant 的记录

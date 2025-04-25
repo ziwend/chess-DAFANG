@@ -1,6 +1,7 @@
 // MCTSAgent.js
 import { CONFIG } from "./gameConstants";
 import { debugLog } from "./historyUtils";
+import { applyPlace, unApplyPlace } from "./boardUtils";
 
 export class MCTSAgent {
     constructor(config = {}) {
@@ -28,12 +29,13 @@ export class MCTSAgent {
         const options = Array.from(availablePositions).map(p => JSON.parse(p));
         const scores = new Map();
 
-        for (const pos of options) {
-            // 为每个位置创建独立的统计对象
-            const boardCopy = JSON.parse(JSON.stringify(currentBoard));
-            this.applyPlace(boardCopy, pos, currentColor);
+        for (const pos of options) {          
+            
+            this.applyPlace(currentBoard, pos, currentColor);
             // 计算一次空位
-            const emptyPositions = this.getEmptyPositions(boardCopy);
+            const emptyPositions = this.getEmptyPositions(currentBoard);
+            
+            // 为每个位置创建独立的统计对象
             const posStats = new PositionCoverageStats(pos, emptyPositions);
             //去除缓存，因为反应变慢，也没有命中缓存
             //  const boardKey = JSON.stringify(boardCopy);
@@ -47,8 +49,8 @@ export class MCTSAgent {
             let totalScore = 0;
 
             for (let i = 0; i < this.dynamicSimulations; i++) {
-                const simBoard = JSON.parse(JSON.stringify(boardCopy));
-                const winner = this.simulateGame(simBoard, opponentColor, currentColor, evaluatePositionsFn, posStats);
+                const boardCopy = JSON.parse(JSON.stringify(currentBoard));
+                const winner = this.simulateGame(boardCopy, opponentColor, currentColor, evaluatePositionsFn, posStats);
 
                 if (winner === currentColor) {
                     totalScore += 1;
@@ -58,6 +60,8 @@ export class MCTSAgent {
                     totalScore += 0.5;
                 }
             }
+            // 恢复棋盘状态
+            this.unApplyPlace(currentBoard, pos, currentColor);
 
             const avg = totalScore / this.dynamicSimulations;
             scores.set(JSON.stringify(pos), avg);
@@ -97,7 +101,8 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
         let turn = 0;
         while (turn < this.dynamicDepth) {
             const availablePositions = new Set();
-            let bestSelfPosition, bestOpponentPosition;  // 添加变量声明
+            let bestSelfPosition = [];
+            let bestOpponentPosition = [];  // 添加变量声明
             // 第一轮使用缓存
             if (turn === 0) {
                 const boardKey = JSON.stringify(board);
@@ -127,40 +132,41 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
             }
 
             // 处理己方最佳位置数组
-            if (bestSelfPosition) {
-                if (!Array.isArray(bestSelfPosition[0])) {
-                    move = bestSelfPosition;
-                    if (CONFIG.DEBUG) {
-                        boardStats.recordUsed(move);
-                    }
+            if (bestSelfPosition.length > 0) {
+                if (CONFIG.DEBUG) {
+                    bestSelfPosition.forEach(place => {
+                        this.applyPlace(board, place, player);
+                        boardStats.recordUsed(place);
+                    }); 
+                    debugLog(CONFIG.DEBUG, `第${turn}颗棋子后返回bestSelfPosition:`,bestSelfPosition);
                 }
-                debugLog(false, `第${turn}颗棋子后返回bestSelfPosition:`,bestSelfPosition);
+                
                 return player;
             }
 
-            let move = null;
+            let place = null;
             // 处理对手最佳位置数组
-            if (bestOpponentPosition) {
-                if (Array.isArray(bestOpponentPosition[0])) {
-                    // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-                    debugLog(false, `第${turn}颗棋子后返回bestOpponentPosition:`,bestOpponentPosition);
+            if (bestOpponentPosition.length > 0) {
+                if (bestOpponentPosition.length > 1) { // TODO 没法处理的情况时，对方下一步可以在不同的位置形成多个阵型，获得的奖励不一样也无法封堵
+                    // 如果有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
+                    debugLog(CONFIG.DEBUG, `第${turn}颗棋子后返回bestOpponentPosition:`,bestOpponentPosition);
                     return opponent;
                 }
-                move = bestOpponentPosition;
+                place = bestOpponentPosition[0];
             } else {
                 const options = Array.from(availablePositions).map(p =>
                     typeof p === 'string' ? JSON.parse(p) : p
                 );
                 if (options.length === 0) break;
 
-                move = this.pickRandom(options);
+                place = this.pickRandom(options);
             }
             // 记录本次使用的位置
-            if (move && CONFIG.DEBUG) {
-                boardStats.recordUsed(move);
+            if (CONFIG.DEBUG) {
+                boardStats.recordUsed(place);
             }
 
-            this.applyPlace(board, move, player);
+            this.applyPlace(board, place, player);
             [player, opponent] = [opponent, player];
             turn++;
         }
@@ -173,14 +179,14 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
         const available = new Set();
         const { bestSelfPosition, bestOpponentPosition } = evaluatePositionsFn(board, player, opponent, available);
 
-        if (bestOpponentPosition && Array.isArray(bestOpponentPosition[0])) {
+        if (bestOpponentPosition.length > 1) {
             // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-            debugLog(false, `${player}的最佳位置:`, bestSelfPosition, '对手的最佳位置:', bestOpponentPosition);
+            debugLog(false, `${player}的对手的最佳位置有多个那就是堵不住了，说明对方赢了:`, bestOpponentPosition);
             return 0;
         }
 
-        let threatBonus = bestSelfPosition ? 0.2 : 0;
-        let dangerPenalty = bestOpponentPosition ? -0.2 : 0;
+        let threatBonus = bestSelfPosition.length > 0 ? 0.2 : 0;
+        let dangerPenalty = bestOpponentPosition.length > 0 ? -0.2 : 0;
         let score = 0.5 + threatBonus + dangerPenalty;
         return Math.max(0, Math.min(1, score));
     }
@@ -192,16 +198,11 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
      * @param {string} color 玩家颜色
      */
     applyPlace(board, pos, color) {
-        const [row, col] = pos;
-        board[row][col] = {
-            color,
-            isFormation: false
-        };
+        applyPlace(board, pos, color);
     }
 
     unApplyPlace(board, pos) {
-        const [row, col] = pos;
-        board[row][col] = null;
+        unApplyPlace(board, pos);
     }
  
     /**
