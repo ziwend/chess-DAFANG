@@ -1,448 +1,428 @@
 .container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    box-sizing: border-box;
-    /* 包括 padding 和 border 在内的总宽度和高度 */
-    padding: 20rpx;
-    /* 可选：添加内边距，防止内容贴边 */
-    align-items: center;
-    justify-content: space-between;
-    /* 调整内容均匀分布 */
-    overflow-x: hidden;
-    /* 禁止横向滚动 */
-    overflow-y: hidden; /* ios */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  /* 包括 padding 和 border 在内的总宽度和高度 */
+  padding: 20rpx;
+  /* 可选：添加内边距，防止内容贴边 */
+  align-items: center;
+  justify-content: space-between;
+  /* 调整内容均匀分布 */
+  overflow-x: hidden;
+  /* 禁止横向滚动 */
+  overflow-y: hidden;
+  /* ios */
 }
 
 .player-box {
-    display: flex;
-    /* 水平分布 */
-    align-items: center;
-    /* 垂直居中 */
-    justify-content: center;
-    /* 水平居中 */
-    width: 100%;
-    /* 宽度为100% */
-    position: relative;
-    /* 相对定位 */
-    gap: 20rpx;
-    /* 添加间距 */
+  display: flex;
+  /* 水平分布 */
+  align-items: center;
+  /* 垂直居中 */
+  justify-content: center;
+  /* 水平居中 */
+  width: 100%;
+  /* 宽度为100% */
+  position: relative;
+  /* 相对定位 */
+  gap: 20rpx;
+  /* 添加间距 */
 }
 
 /* 悔棋按钮样式 */
 .undo-button {
-    position: absolute;
-    left: 0;
-    padding-left: 10rpx;
-    padding-right: 10rpx;
-    border-radius: 10rpx;
-    font-size: 28rpx;
-    width: 200rpx !important;
+  position: absolute;
+  left: 0;
+  padding-left: 10rpx;
+  padding-right: 10rpx;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+  width: 200rpx !important;
 }
 
 /* 自适应文字宽度 */
 .ai-setting-button {
-    position: absolute;
-    right: 0;
-    padding-left: 10rpx;
-    padding-right: 10rpx;
-    font-size: 28rpx;
-    border-radius: 10rpx;
-    width: 200rpx !important;
+  position: absolute;
+  right: 0;
+  padding-left: 10rpx;
+  padding-right: 10rpx;
+  font-size: 28rpx;
+  border-radius: 10rpx;
+  width: 200rpx !important;
 }
 
 .piece-box {
-    width: 150rpx;
-    height: 90rpx;
-    border-radius: 50%;
-    border: 2rpx solid #000000;
-    display: flex;
-    /* 水平分布 */
-    justify-content: space-between;
-    align-items: center;
-    margin: 0 20rpx;
-    position: relative;
-    /* 添加相对定位 */
+  /*width: 150rpx;*/
+  /*height: 90rpx;*/
+  border-radius: 50%;
+  border: 2rpx solid #000000;
+  display: flex;
+  /* 水平分布 */
+  justify-content: center;
+  align-items: center;
+  margin: 0 20rpx;
+  position: relative;
+  /* 添加相对定位 */
 }
 
-.piece-box .piece {
-    width: 60rpx;
-    height: 60rpx;
+.piece-wrapper {
+  display: flex;
+  align-items: center;
 }
 
-.piece-box .piece-count {
-    position: relative;
-    /* 绝对定位，相对于父容器 piece-box */
-    left: 107rpx;
-    /* 距离棋子右侧的间距 */
-    font-size: 20rpx;
-    color: #666;
+.piece-count {
+  /* position: relative;*/
+  /* 绝对定位，相对于父容器 piece-box */
+  /* left: 107rpx;*/
+  /* 距离棋子右侧的间距 */
+  position: absolute;
+  top: 50%;
+  left: 100%; /* 贴到 .piece-container 的右边 */
+  transform: translate(5rpx, -50%); /* 轻微偏移，视觉美观 */
+  font-size: 20rpx;
+  color: #666;
+  width: 35rpx;
 }
 
 .black-box {
-    background-color: #ffffff;
+  background-color: #ffffff;
 }
 
 .white-box {
-    background-color: #e0e0e0;
+  background-color: #e0e0e0;
 }
 
 /* 棋盘容器 */
 .board-container {
-    position: relative;
-    width: 100%;
-    /* 容器宽度占满父级 */
-    margin: 0 auto;
-    /* 水平居中 */
-    display: flex;
-    /* 水平分布 */
-    justify-content: center;
-    /* 水平居中棋盘 */
-    align-items: center;
-    /* 垂直居中棋盘 */
-    overflow: hidden;
-    /* 防止子元素溢出 */
+  position: relative;
+  width: 100%;
+  /* 容器宽度占满父级 */
+  margin: 0 auto;
+  /* 水平居中 */
+  display: flex;
+  /* 水平分布 */
+  justify-content: center;
+  /* 水平居中棋盘 */
+  align-items: center;
+  /* 垂直居中棋盘 */
+  overflow: hidden;
+  /* 防止子元素溢出 */
 }
 
 /* 棋盘蒙版 */
 .board-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    /* 与父容器宽度一致 */
-    height: 100%;
-    /* 与父容器高度一致 */
-    background-color: rgba(245, 245, 245, 0.85);
-    /* 黑色蒙版，50%透明度 */
-    z-index: 2;
-    /* 确保蒙版在棋盘上方 */
-    pointer-events: none;
-    /* 禁止蒙版拦截点击事件 */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* 与父容器宽度一致 */
+  height: 100%;
+  /* 与父容器高度一致 */
+  background-color: rgba(245, 245, 245, 0.85);
+  /* 黑色蒙版，50%透明度 */
+  z-index: 2;
+  /* 确保蒙版在棋盘上方 */
+  pointer-events: none;
+  /* 禁止蒙版拦截点击事件 */
 }
 
 /* 棋盘内容 */
 .board {
-    width: 90vmin;
-    /* 使用视口单位，确保棋盘大小自适应 */
-    height: 90vmin;
-    /* 使用视口单位，确保棋盘大小自适应 */
-    max-width: 600rpx;
-    /* 设置最大宽度 */
-    max-height: 600rpx;
-    position: relative;
-    background-color: #f5f5f5;
-    box-sizing: border-box;
-    z-index: 1;
-    /* 确保棋盘在蒙版下方 */
-    margin: 60rpx 0;
-    /* 增加上下外边距 */
+  position: relative;
+  background-color: #f5f5f5;
+  box-sizing: border-box;
+  z-index: 1;
+  /* 确保棋盘在蒙版下方 */
+  margin: 60rpx 0;
+  /* 增加上下外边距 */
 }
 
 /* 横线 */
 .horizontal-lines {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    left: 0;
-    top: 0;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
 }
 
 .horizontal-line {
-    position: absolute;
-    width: 100%;
-    height: 2rpx;
-    background-color: #000;
+  position: absolute;
+  width: 100%;
+  height: 2rpx;
+  background-color: #000;
 }
 
 /* 竖线 */
 .vertical-lines {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    left: 0;
-    top: 0;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
 }
 
 .vertical-line {
-    position: absolute;
-    width: 2rpx;
-    height: 100%;
-    background-color: #000;
+  position: absolute;
+  width: 2rpx;
+  height: 100%;
+  background-color: #000;
 }
 
 .row {
-    display: flex;
-    flex: 1;
-    position: relative;
+  display: flex;
+  flex: 1;
+  position: relative;
 }
 
 .cell {
-    flex: 1;
-    border: 1px solid #ccc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  flex: 1;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 
 .flash {
-    animation: flash 1s 3;
+  animation: flash 1s 3;
 }
 
 @keyframes flash {
-    0% {
-        opacity: 1;
-    }
+  0% {
+    opacity: 1;
+  }
 
-    50% {
-        opacity: 0.3;
-    }
+  50% {
+    opacity: 0.3;
+  }
 
-    100% {
-        opacity: 1;
-    }
+  100% {
+    opacity: 1;
+  }
 }
 
 .intersection {
-    width: 20rpx;
-    height: 20rpx;
-    position: absolute;
-    transform: translate(-50%, -50%);
-    z-index: 2;
+  width: 20rpx;
+  height: 20rpx;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
 }
 
 .piece {
-    width: 60rpx;
-    height: 60rpx;
-    border-radius: 50%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 3;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
 }
 
 .piece.black {
-    background-color: #000000;
+  background: radial-gradient(circle at 30% 30%, #555, #000);
+  box-shadow: inset -2rpx -2rpx 4rpx rgba(255, 255, 255, 0.3),
+    inset 2rpx 2rpx 6rpx rgba(0, 0, 0, 0.5),
+    2rpx 2rpx 8rpx rgba(0, 0, 0, 0.5);
+  border: 1rpx solid #999;
 }
 
 .piece.white {
-    background-color: #ffffff;
-    border: 2rpx solid #000000;
+  background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+  box-shadow: inset -2rpx -2rpx 4rpx rgba(255, 255, 255, 0.8),
+    inset 2rpx 2rpx 6rpx rgba(0, 0, 0, 0.2),
+    2rpx 2rpx 8rpx rgba(0, 0, 0, 0.2);
+  border: 1rpx solid #999;
 }
+
 
 /* 添加阵型边框样式 */
 .piece.formation-border {
-    border: 5rpx solid #ffcc00;
-    box-shadow: 0 0 10rpx rgba(255, 204, 0, 0.5);
+  border: 5rpx solid #ffcc00;
+  box-shadow: 0 0 10rpx rgba(255, 204, 0, 0.5);
 }
 
 .controls {
-    display: flex;
-    justify-content: center;
-    /* 改为居中对齐 */
-    gap: 30rpx;
-    /* 按钮之间的间距 */
-    width: 100%;
-    padding: 0 20rpx;
+  display: flex;
+  justify-content: center;
+  /* 改为居中对齐 */
+  gap: 30rpx;
+  /* 按钮之间的间距 */
+  width: 100%;
+  padding: 0 20rpx;
 }
 
 .control-button {
-    padding: 12rpx 24rpx;
-    /* 设置内边距 */
-    font-size: 28rpx;
-    border-radius: 8rpx;
-    border: none;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    /* 防止按钮内文字换行 */
-    width: auto !important;
-    /* 使按钮宽度随内容变化 */
-    min-width: 0 !important;
-    /* 移除最小宽度限制 */
-    box-sizing: border-box;
-    /* 包括 padding 和 border 在内的总宽度 */
+  padding: 12rpx 24rpx;
+  /* 设置内边距 */
+  font-size: 28rpx;
+  border-radius: 8rpx;
+  border: none;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  /* 防止按钮内文字换行 */
+  width: auto !important;
+  /* 使按钮宽度随内容变化 */
+  min-width: 0 !important;
+  /* 移除最小宽度限制 */
+  box-sizing: border-box;
+  /* 包括 padding 和 border 在内的总宽度 */
 }
 
 /* 按钮点击效果 */
 .control-button:active {
-    transform: translateY(2rpx);
-    opacity: 0.8;
+  transform: translateY(2rpx);
+  opacity: 0.8;
 }
 
 .timer {
-    min-width: 120rpx;
-    /* 设置最小宽度 */
-    text-align: center;
-    padding: 12rpx 24rpx;
-    font-size: 28rpx;
+  min-width: 120rpx;
+  /* 设置最小宽度 */
+  text-align: center;
+  padding: 12rpx 24rpx;
+  font-size: 28rpx;
 }
 
 .game-status {
-    width: 100%;
-    text-align: center;
-    background-color: #f5f5f5;
-    padding: 18rpx 24rpx;
+  width: 100%;
+  text-align: center;
+  background-color: #f5f5f5;
+  padding: 18rpx 24rpx;
 }
 
 .status-text {
-    font-size: 32rpx;
-    color: #333333;
+  font-size: 32rpx;
+  color: #333333;
 }
 
 .extra-moves {
-    font-size: 28rpx;
-    color: #666;
-    margin-left: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+  margin-left: 20rpx;
 }
 
 /* 箭头按钮样式 */
 .arrow-button {
-    width: 70rpx;
-    height: 40rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    position: absolute;
-    /* 改为绝对定位 */
-    left: calc(50% - 140rpx);
-    /* 位于 piece-box 左侧 */
-    color: #000000;
-    font-weight: bolder;
-    font-size: larger;
+  width: 70rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  position: absolute;
+  /* 改为绝对定位 */
+  left: calc(50% - 140rpx);
+  /* 位于 piece-box 左侧 */
+  color: #000000;
+  font-weight: bolder;
+  font-size: larger;
 }
 
 .arrow-button.active {
-    opacity: 1;
+  opacity: 1;
 }
-
+.arrow-text {
+  font-size: 36rpx; /* 加大字体 */
+  font-weight: bold; /* 加粗字体 */
+}
 /* 悬浮的开始按钮 */
 .floating-start-button {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 130rpx !important;
-    /* 圆圈的直径 */
-    height: 130rpx !important;
-    background-color: #ffffff;
-    /* 圆圈的背景色 */
-    border: 5rpx solid #000000;
-    /* 圆圈的边框颜色 */
-    border-radius: 50%;
-    /* 圆形 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 4;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 130rpx !important;
+  /* 圆圈的直径 */
+  height: 130rpx !important;
+  background-color: #ffffff;
+  /* 圆圈的背景色 */
+  border: 5rpx solid #000000;
+  /* 圆圈的边框颜色 */
+  border-radius: 50%;
+  /* 圆形 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
 }
 
 /* 播放按钮三角形 */
 .floating-start-button::before {
-    content: '';
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 30rpx 0 30rpx 45rpx;
-    /* 三角形大小 */
-    border-color: transparent transparent transparent #000000;
-    /* 让左侧部分有颜色，形成三角形 */
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 30rpx 0 30rpx 45rpx;
+  /* 三角形大小 */
+  border-color: transparent transparent transparent #000000;
+  /* 让左侧部分有颜色，形成三角形 */
 }
+
 /*顶部统计信息*/
-.rank, .points {
-    font-size: 28rpx;
-    color: #333;
+.rank,
+.points {
+  font-size: 28rpx;
+  color: #333;
 }
 
 .divider {
-    color: #999;
-    font-size: 24rpx;
+  color: #999;
+  font-size: 24rpx;
 }
 
 /* 卡片样式 */
 .stats-card {
-    background-color: #ffffff;
-    padding: 20rpx;
-    border-radius: 16rpx;
-    box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.3);
-    min-width: 420rpx;
+  background-color: #ffffff;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.3);
+  min-width: 420rpx;
 }
 
 /* 段位和积分行 */
 .stats-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 28rpx;
-    color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28rpx;
+  color: #333;
 }
 
 /* 问号按钮样式 */
 .help-icon {
-    display: inline-block;
-    width: 32rpx;
-    height: 32rpx;
-    line-height: 32rpx;
-    text-align: center;
-    background: #666;
-    color: white;
-    border-radius: 50%;
-    margin-left: 10rpx;
-    font-size: 24rpx;
+  display: inline-block;
+  width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  text-align: center;
+  background: #666;
+  color: white;
+  border-radius: 50%;
+  margin-left: 10rpx;
+  font-size: 24rpx;
 }
 
 /* 每日任务部分 */
 .daily-tasks {
-    margin-top: 20rpx;
-    padding: 20rpx;
-    background-color: #f9f9f9;
-    border-radius: 12rpx;
-    box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.1);
+  margin-top: 20rpx;
+  padding: 20rpx;
+  background-color: #f9f9f9;
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.1);
 }
 
 .task {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10rpx 0;
-    font-size: 26rpx;
-    color: #666;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10rpx 0;
+  font-size: 26rpx;
+  color: #666;
 }
 
 .task:not(:last-child) {
-    border-bottom: 1rpx solid #eee;
-}
-
-/* iPad 或大屏设备的样式调整 */
-@media (min-width: 768px) {
-    .board {
-        width: 70vmin;
-        height: 70vmin;
-        max-width: 500rpx;
-        max-height: 500rpx;
-    }
-
-    .piece {
-        width: 50rpx;
-        height: 50rpx;
-    }
-}
-
-/* 更大屏幕（如桌面设备）的样式调整 */
-@media (min-width: 1024px) {
-    .board {
-        width: 60vmin;
-        height: 60vmin;
-        max-width: 400rpx;
-        max-height: 400rpx;
-    }
-
-    .piece {
-        width: 40rpx;
-        height: 40rpx;
-    }
+  border-bottom: 1rpx solid #eee;
 }
