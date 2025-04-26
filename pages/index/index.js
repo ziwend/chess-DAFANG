@@ -67,7 +67,7 @@ Page({
   },
   openMenu: function () {
     wx.showActionSheet({
-      itemList: ['我的战绩', '检查github更新', '检查gitee更新'], // 添加“检查更新”选项
+      itemList: ['我的战绩', '设置黑方棋手', '设置白方棋手', '检查github更新', '检查gitee更新'], // 添加“检查更新”选项
       success: res => {
         // 根据选择的菜单项执行相应操作
         if (res.tapIndex === 0) {
@@ -75,6 +75,10 @@ Page({
           const statistics = this.getAllGameResults();
           this.showStatistics(statistics);
         } else if (res.tapIndex === 1) {
+          this.setPlayer('black');
+        } else if (res.tapIndex === 2) {
+          this.setPlayer('white');
+        } else if (res.tapIndex === 3) {
           // 跳转到 GitHub Releases 页面
           wx.setClipboardData({
             data: 'https://github.com/ziwend/chess-DAFANG/releases',
@@ -86,7 +90,7 @@ Page({
               });
             }
           });
-        } else if (res.tapIndex === 2) {
+        } else if (res.tapIndex === 4) {
           // 跳转到 Gitee Releases 页面
           wx.setClipboardData({
             data: 'https://gitee.com/ziwend/chess-DAFANG/releases/',
@@ -103,6 +107,11 @@ Page({
       fail: res => {
         debugLog(CONFIG.DEBUG, '用户取消了菜单', res);
       }
+    });
+  },
+  setPlayer: function (color) {
+    wx.navigateTo({
+      url: `/pages/aiSetting/aiSetting?color=${color}`
     });
   },
   getAllGameResults: function () {
@@ -181,7 +190,7 @@ Page({
               'easy': '简单',
               'medium': '中等',
               'hard': '困难'
-            } [difficulty];
+            }[difficulty];
             message += `${difficultyText}难度: 胜${results.win}场 负${results.loss}场\n`;
           }
         });
@@ -287,10 +296,6 @@ Page({
       isGameOver: false, // 新增游戏结束标志 
       message: '', // 清空状态栏提示        
       elapsedTime: '00:00', // 重置计时器
-      flashPiece: {
-        row: null,
-        col: null
-      }, // 重置闪烁棋子位置
       requestTask: null, // 重置请求任务
       isExchangeRemoving: false, // 重置交换吃子标志
       lastTapTime: null, // 新增变量，用于记录上次点击时间
@@ -349,48 +354,48 @@ Page({
     const player = currentColor === 'black' ? '黑方' : '白方';
     // 还要修改第二个condition，当获得了额外移动次数，是没有切换棋手的，还是当前方
     const conditions = [{
-        check: () => this.data[`${currentColor}Count`] < CONFIG.MIN_PIECES_TO_WIN,
-        feedback: `当前棋手的棋子少于3颗，对方${opponent}获胜`,
-        winnerColor: opponentColor,
-        losserColor: currentColor,
-        winner: `${opponent}`
-      },
-      {
-        check: () => this.data.extraMoves > 0 && this.data.extraMoves + CONFIG.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
-        feedback: `当前棋手吃子后，对方剩余棋子少于3颗，己方${player}获胜`,
-        winnerColor: currentColor,
-        losserColor: opponentColor,
-        winner: `${player}`
-      },
-      {
-        check: () => this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
-        feedback: `当前棋手无棋子可以移动，对方${opponent}获胜`,
-        winnerColor: opponentColor,
-        losserColor: currentColor,
-        winner: `${opponent}`
-      }
+      check: () => this.data[`${currentColor}Count`] < CONFIG.MIN_PIECES_TO_WIN,
+      feedback: `当前棋手的棋子少于3颗，对方${opponent}获胜`,
+      winnerColor: opponentColor,
+      losserColor: currentColor,
+      winner: `${opponent}`
+    },
+    {
+      check: () => this.data.extraMoves > 0 && this.data.extraMoves + CONFIG.MIN_PIECES_TO_WIN > this.data[`${opponentColor}Count`],
+      feedback: `当前棋手吃子后，对方剩余棋子少于3颗，己方${player}获胜`,
+      winnerColor: currentColor,
+      losserColor: opponentColor,
+      winner: `${player}`
+    },
+    {
+      check: () => this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.hasValidMoves(currentColor),
+      feedback: `当前棋手无棋子可以移动，对方${opponent}获胜`,
+      winnerColor: opponentColor,
+      losserColor: currentColor,
+      winner: `${opponent}`
+    }
     ];
 
     for (const {
-        check,
-        winner,
-        winnerColor,
-        losserColor,
-        feedback
-      } of conditions) {
+      check,
+      winner,
+      winnerColor,
+      losserColor,
+      feedback
+    } of conditions) {
       if (check()) {
         this.setData({
           isGameOver: true,
           isGameStarted: false,
           gameHistory: [...this.data.gameHistory,
-            {
-              role: "user",
-              content: `游戏结束，获胜方: ${winner}`
-            },
-            {
-              role: "assistant",
-              content: `是的，因为: ${feedback}`
-            }
+          {
+            role: "user",
+            content: `游戏结束，获胜方: ${winner}`
+          },
+          {
+            role: "assistant",
+            content: `是的，因为: ${feedback}`
+          }
           ]
         });
         // 等待导出完成
@@ -653,8 +658,11 @@ Page({
     }
 
     // 计算点击的交叉点
-    const cellSize = boardRect.width / 5; // 棋盘总宽度除以5个格子
+    //const cellSize = boardRect.width / 5; // 棋盘总宽度除以5个格子
+    
+    //debugLog(CONFIG.DEBUG, "对比一下计算得到的cellSize和设置的是否一样", cellSize, this.data.cellSize);
     // 计算最近的交叉点
+    const cellSize = this.data.cellSize;
     let targetCol = Math.round(boardX / cellSize);
     let targetRow = Math.round(boardY / cellSize);
 
@@ -835,20 +843,58 @@ Page({
   },
 
   // 处理移动阶段的落子逻辑
-  handleMoveDrop: function (color, movePositions) {
+  handleMoveDrop: async function (color, movePositions) {
     const {
       startRow,
       startCol,
       targetRow,
       targetCol
     } = movePositions;
+    debugLog(CONFIG.DEBUG,"移动棋子",movePositions);
+    const cellSize = this.data.cellSize;
+  
+    const startLeft = this.data.boardRectCache.left + startCol * cellSize;
+    const startTop = this.data.boardRectCache.top + startRow * cellSize;
+    const endLeft = this.data.boardRectCache.left + targetCol * cellSize;
+    const endTop = this.data.boardRectCache.top + targetRow * cellSize;
+    
+    // 1. 清空起点，设置 movingPiece 出现
+    const newBoard = this.updateBoard(null, startRow, startCol, null, null);
+    let updateData = {
+      board: newBoard,
+      movingPiece: {
+        color: color,
+        left: startLeft,
+        top: startTop
+      },
+      isAnimationInProgress: true
+    };
+    this.setData(updateData);
+    debugLog(CONFIG.DEBUG,"设置起始位置",this.data.movingPiece,startLeft ,startTop,endLeft,endTop);
+    // 2. 延迟一点（30ms），再把 movingPiece 位置设置到终点，触发 CSS transition 动画
+    setTimeout(() => {
+      this.setData({
+        'movingPiece.left': endLeft,
+        'movingPiece.top': endTop
+      });
+    }, 150);
+    debugLog(CONFIG.DEBUG,"结束动画",this.data.movingPiece);
+    // 3. 动画结束后，更新最终的棋盘状态
+    setTimeout(() => {
+      debugLog(CONFIG.DEBUG,"1.5秒动画 + 100ms缓冲",this.data.movingPiece);
+      this.handleAfterMove(color, startRow, startCol, targetRow, targetCol);
+    }, 1600); // 1.5秒动画 + 100ms缓冲
+  },
+  
+  // 处理移动棋子后的游戏状态
+  handleAfterMove: function (color, startRow, startCol, targetRow, targetCol) {
     // 更新棋盘
     const newBoard = this.updateBoard(color, startRow, startCol, targetRow, targetCol);
     const formationUpdate = checkFormation(targetRow, targetCol, color, newBoard);
 
     let updateData = {
       board: newBoard,
-
+      movingPiece: null
     };
 
     const formationUpdateDestroy = checkFormation(startRow, startCol, color, this.data.board);
@@ -905,7 +951,6 @@ Page({
     // 更新数据并设置闪动棋子
     this.setData(updateData);
   },
-
   // 抽取：处理手动双击移除操作
   handleRemove: function (currentColor, targetPosition) {
     // 吃子阶段：双击对方棋子
@@ -949,18 +994,18 @@ Page({
   onAnimationEnd: async function (e) {
     // 标记动画结束
     let updateData = {
-      flashPiece: {
-        row: null,
-        col: null
-      },
       isAnimationInProgress: false
     };
-    if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING) {
+    if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && this.data.flashPiece.row) {
       // 先检查游戏是否结束
       const winner = await this.checkGameOver();
       if (winner) {
         return;
       }
+      updateData.flashPiece = {
+        row: null,
+        col: null
+      };
       if (this.data.extraMoves > 0) {
         updateData.gamePhase = CONFIG.GAME_PHASES.REMOVING;
       } else {
@@ -976,6 +1021,10 @@ Page({
 
       this.handleAITurn(this.data.gamePhase, this.data.players[this.data.currentPlayer]);
     } else if (this.data.gamePhase === CONFIG.GAME_PHASES.PLACING) {
+      updateData.flashPiece = {
+        row: null,
+        col: null
+      };
       // 放置最后一颗棋子后
       // 检查棋盘是否已满
       if (this.isMaxPiecesCount()) {

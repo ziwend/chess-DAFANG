@@ -202,10 +202,16 @@
     opacity: 1;
   }
 }
+.moving-piece {
+  position: absolute;
+  transition: left 1.5s ease, top 1.5s ease;
+  border-radius: 50%;
+  z-index: 3; /* 保证在棋盘之上 */
+}
 
 .intersection {
-  width: 20rpx;
-  height: 20rpx;
+  /* width: 20rpx;*/
+  /* height: 20rpx;*/
   position: absolute;
   transform: translate(-50%, -50%);
   z-index: 2;
@@ -375,6 +381,8 @@
 
 /* 卡片样式 */
 .stats-card {
+    display: flex;
+  flex-direction: column;
   background-color: #ffffff;
   padding: 20rpx;
   border-radius: 16rpx;
