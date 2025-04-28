@@ -7,7 +7,7 @@
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#ffffff",
-    "navigationBarTitleText": "棋类游戏-大方棋",
+    "navigationBarTitleText": "大方棋",
     "navigationBarTextStyle": "black"
   },
   "renderer": "webview",

@@ -1,142 +1,137 @@
 <view class="container">
-  <view class="game-status">
-    <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
-    <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
-  </view>
-
-  <!-- 黑子棋盒 -->
-  <view class="player-box">
-    <!-- 黑方悔棋按钮 -->
-    <button class="undo-button" wx:if="{{playerConfig.black.playerType === 'self'}}" bindtap="undoMove" data-color="black">
-      悔　　棋
-    </button>
-    <!-- 黑方难易程度 -->
-    <button class="undo-button" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black">
-      {{playerConfig.black.difficulty === 'easy' ? '容　　易' : (playerConfig.black.difficulty === 'medium' ? '中等难度' : '困　　难')}}
-    </button>
-
-    <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
-      <text class="arrow-text">-></text>
+    <view class="game-status">
+        <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
+        <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
     </view>
-    <view class="piece-box black-box" style="width: {{cellSize * 1.25}}px; height: {{cellSize * 0.75}}px;">
 
-      <view class="piece black" style="width: {{cellSize * 0.5}}px; height: {{cellSize * 0.5}}px;">
-        <text class="piece-count">x{{blackCount}}</text>
-      </view>
-    </view>
-      <view class="stats-card" wx:if="{{playerConfig.black.playerType === 'self'}}">
-
-      <view class="rank">段位：{{playerStats.rank}}</view>
-      <view class="divider">|</view>
-      <view class="points">
-        积分：{{playerStats.totalPoints}}
-        <text class="help-icon" bindtap="toggleDailyTasks">?</text>
-      </view>
-
-
-    <!-- 每日任务部分 -->
-    <block wx:if="{{showDailyTasks}}">
-      <view class="daily-tasks">
-        <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
-          <text>{{item.desc}}</text>
-          <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+    <!-- 黑子棋盒 -->
+    <view class="player-box">
+        <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
+            <text class="arrow-text">-></text>
         </view>
-      </view>
-    </block>
-  </view>
-    <!-- <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="black">设置黑方</button> -->
-  </view>
-  <view class="board-container">
-    <!-- 悬浮的开始按钮 -->
-    <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
-    <!-- 棋盘蒙版 -->
-    <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
-
-    <view class="board" style="width: {{boardSize}}px; height: {{boardSize}}px;" bindtouchend="handleTouchEnd">
-      <!-- 横线 -->
-      <view class="horizontal-lines">
-        <view class="horizontal-line" wx:for="{{6}}" wx:key="index" style="top: {{index * cellSize}}px; width: {{boardSize}}px;">
-        </view>
-      </view>
-
-      <!-- 竖线 -->
-      <view class="vertical-lines">
-        <view class="vertical-line" wx:for="{{6}}" wx:key="index" style="left: {{index * cellSize}}px; height: {{boardSize}}px;">
-        </view>
-      </view>
-
-      <!-- 交叉点和棋子 -->
-      <view wx:for="{{board}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="rowIndex">
-        <view wx:for="{{row}}" wx:for-item="cell" wx:for-index="colIndex" wx:key="colIndex">
-          <view class="intersection" style="left: {{colIndex * cellSize}}px; top: {{rowIndex * cellSize}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}">
-            <view wx:if="{{cell}}" class="piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}" style="width: {{cellSize * 0.6}}px; height: {{cellSize * 0.6}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}" data-color="{{cell.color}}" bindtouchstart="handleDragStart" bindanimationend="onAnimationEnd">
+        <view class="piece-box black-box" style="width: {{cellSize * 1.25}}px; height: {{cellSize * 0.75}}px;">
+            <view class="piece black" style="width: {{cellSize * 0.5}}px; height: {{cellSize * 0.5}}px;">
+                <text class="piece-count">x{{blackCount}}</text>
             </view>
-          </view>
         </view>
-      </view>
-      <!-- 新增一层，单独绘制 movingPiece -->
-<view wx:if="{{movingPiece}}" 
-      class="moving-piece {{movingPiece.color}}" 
-      style="width: {{cellSize * 0.6}}px; height: {{cellSize * 0.6}}px; left: {{movingPiece.left}}px; top: {{movingPiece.top}}px;">
-</view>
-
-    </view>
-  </view>
-  <!-- 白子棋盒 -->
-  <view class="player-box">
-    <!-- 白方悔棋按钮 -->
-    <button class="undo-button" wx:if="{{playerConfig.white.playerType === 'self'}}" bindtap="undoMove" data-color="white">
-      悔　　棋
-    </button>
-    <!-- 白方难易程度 -->
-    <button class="undo-button" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white">
-      {{playerConfig.white.difficulty === 'easy' ? '容　　易' : (playerConfig.white.difficulty === 'medium' ? '中等难度' : '困　　难')}}
-    </button>
-    <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
-      <text class="arrow-text">-></text>
-    </view>
-    <view class="piece-box white-box" style="width: {{cellSize * 1.25}}px; height: {{cellSize * 0.75}}px;">
-      <view class="piece white" style="width: {{cellSize * 0.5}}px; height: {{cellSize * 0.5}}px;">
-        <text class="piece-count">x{{whiteCount}}</text>
-      </view>
-
-    </view>
-    <view class="stats-card" wx:if="{{playerConfig.white.playerType === 'self'}}">
-    <view class="stats-row">
-      <view class="rank">段位：{{playerStats.rank}}</view>
-      <view class="divider">|</view>
-      <view class="points">
-        积分：{{playerStats.totalPoints}}
-        <text class="help-icon" bindtap="toggleDailyTasks">?</text>
-      </view>
-    </view>
-
-    <!-- 每日任务部分 -->
-    <block wx:if="{{showDailyTasks}}">
-      <view class="daily-tasks">
-        <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
-          <text>{{item.desc}}</text>
-          <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+        <view class="stats-card" wx:if="{{playerConfig.black.playerType === 'self'}}" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+            <view class="points-icon">🏅{{playerStats.totalPoints}}</view>
+            <text class="help-icon" bindtap="toggleDailyTasks">?</text>
         </view>
-      </view>
+        <!-- 独立定位的难度条 -->
+        <view class="difficulty-bar" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+            {{playerConfig.black.difficulty === 'easy' ? '▰▱▱' : 
+          (playerConfig.black.difficulty === 'medium' ? '▰▰▱' : '▰▰▰')}}
+        </view>
+
+    </view>
+    <!-- 将每日任务移到player-box下方 -->
+    <block wx:if="{{showDailyTasks && playerConfig.black.playerType === 'self'}}">
+        <view class="daily-tasks">
+            <view class="task-container">
+                <view class="rank">{{playerStats.rank}}</view>
+                <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
+                    <text>{{item.desc}}</text>
+                    <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+                </view>
+
+            </view>
+        </view>
     </block>
-  </view>
-    <!-- <button class="ai-setting-button" bindtap="goToPlayerSetting" data-color="white">设置白方</button> -->
-  </view>
+    <view class="board-container">
+        <!-- 悬浮的开始按钮 -->
+        <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
+        <!-- 棋盘蒙版 -->
+        <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
 
+        <view class="board" style="width: {{boardSize}}px; height: {{boardSize}}px;" bindtouchstart="handleTouchStart" bindtouchmove="handleTouchMove" bindtouchend="handleTouchEnd">
+            <!-- 新增一层，单独绘制 movingPiece -->
+            <view wx:if="{{movingPiece}}" class="piece moving-piece {{movingPiece.color}}" animation="{{moveAnimation}}" style="width: {{cellSize * 0.6}}px; height: {{cellSize * 0.6}}px; left: {{movingPiece.currentX}}px; top: {{movingPiece.currentY}}px;">
+            </view>
+            <!-- 横线 -->
+            <view class="horizontal-lines">
+                <view class="horizontal-line" wx:for="{{6}}" wx:key="index" style="top: {{index * cellSize}}px; width: {{boardSize}}px;">
+                </view>
+            </view>
 
+            <!-- 竖线 -->
+            <view class="vertical-lines">
+                <view class="vertical-line" wx:for="{{6}}" wx:key="index" style="left: {{index * cellSize}}px; height: {{boardSize}}px;">
+                </view>
+            </view>
 
-  <view class="controls">
-    <!-- 游戏未开始时显示“更多设置”按钮 -->
-    <button class="control-button" bindtap="openMenu" wx:if="{{!isGameStarted}}">查看更多</button>
+            <!-- 交叉点和棋子 -->
+            <view wx:for="{{board}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="rowIndex">
+                <view wx:for="{{row}}" wx:for-item="cell" wx:for-index="colIndex" wx:key="colIndex">
+                    <view class="intersection" style="left: {{colIndex * cellSize}}px; top: {{rowIndex * cellSize}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}">
+                        <view wx:if="{{cell}}" class="piece  static-piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}" style="width: {{cellSize * 0.6}}px; height: {{cellSize * 0.6}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}" data-color="{{cell.color}}"  bindanimationend="onAnimationEnd">
+                        </view>
+                    </view>
+                </view>
+            </view>
 
-    <!-- 游戏开始后显示“重新开始”按钮 -->
-    <button class="control-button" bindtap="restartGame" wx:if="{{isGameStarted}}">重新开始</button>
+        </view>
+    </view>
+    <!-- 白子棋盒 -->
+    <view class="player-box">
 
-    <view class="timer" wx:if="{{isGameStarted}}">
-      <text>{{elapsedTime}}</text>
+        <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
+            <text class="arrow-text">-></text>
+        </view>
+        <view class="piece-box white-box" style="width: {{cellSize * 1.25}}px; height: {{cellSize * 0.75}}px;">
+            <view class="piece white" style="width: {{cellSize * 0.5}}px; height: {{cellSize * 0.5}}px;">
+                <text class="piece-count">x{{whiteCount}}</text>
+            </view>
+
+        </view>
+        <view class="stats-card" wx:if="{{playerConfig.white.playerType === 'self'}}" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+            <view class="points-icon">🏅{{playerStats.totalPoints}}</view>
+            <text class="help-icon" bindtap="toggleDailyTasks">?</text>
+        </view>
+        <!-- 独立定位的难度条 -->
+        <view class="difficulty-bar" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+            {{playerConfig.white.difficulty === 'easy' ? '▰▱▱' : 
+          (playerConfig.white.difficulty === 'medium' ? '▰▰▱' : '▰▰▰')}}
+        </view>
+
     </view>
 
-    <button class="control-button" bindtap="goToRules">游戏规则</button>
-  </view>
+    <!-- 将每日任务移到player-box下方 -->
+    <block wx:if="{{showDailyTasks && playerConfig.white.playerType === 'self'}}">
+        <view class="daily-tasks">
+            <view class="task-container">
+                <view class="rank">{{playerStats.rank}}</view>
+                <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
+                    <text>{{item.desc}}</text>
+                    <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+                </view>
+
+            </view>
+        </view>
+    </block>
+
+
+    <view class="controls">
+        <!-- 游戏未开始时显示“更多设置”按钮 -->
+        <button class="control-button" bindtap="openMenu" wx:if="{{!isGameStarted}}">
+            <view class="settings-icon">⚙️</view>
+        </button>
+
+        <!-- 游戏开始后显示“重新开始”按钮 -->
+        <button class="control-button" bindtap="restartGame" wx:if="{{isGameStarted}}">
+            <view class="restart-icon">↻</view>
+        </button>
+
+        <view class="timer" wx:if="{{isGameStarted}}">
+            <text>{{elapsedTime}}</text>
+        </view>
+
+        <button class="control-button" bindtap="goToRules" wx:if="{{!isGameStarted}}">
+            <view class="rules-icon">📜</view>
+        </button>
+        <!-- 悔棋按钮 -->
+        <button class="control-button" wx:if="{{isGameStarted}}" bindtap="undoMove">
+            <view class="back-icon">↩</view>
+        </button>
+    </view>
 </view>

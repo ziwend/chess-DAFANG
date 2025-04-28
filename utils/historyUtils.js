@@ -1,5 +1,5 @@
 import { CONFIG } from "./gameConstants";
-
+import { getBoardState } from "./boardUtils";
 export function saveUserMessageToHistory(phase, playerColor, updatedHistory, lastActionResult, board) {
     const boardState = getBoardState(board);
     const feedback = lastActionResult || '';
@@ -25,16 +25,7 @@ export function saveAssistantMessageToHistory(gameHistory, content) {
         content: typeof content === 'string' ? content : JSON.stringify(content)
     }];
 }
-// **获取当前棋盘状态**
-function getBoardState(board) {
-    if (!board) {
-        board = CONFIG.INITIAL_BOARD;
-    }
-    return board.map(row => row.map(cell => cell ? {
-        color: cell.color,
-        isFormation: cell.isFormation
-    } : null));
-}
+
 
 export function exportGameHistory(gameHistory) {
     return new Promise((resolve, reject) => {

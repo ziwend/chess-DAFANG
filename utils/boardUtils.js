@@ -55,7 +55,16 @@ export function updateBoard(color, startRow, startCol, targetRow, targetCol, boa
 
     return newBoard;
 }
-
+// **获取当前棋盘状态**
+export function getBoardState(board) {
+    if (!board) {
+        board = CONFIG.INITIAL_BOARD;
+    }
+    return board.map(row => row.map(cell => cell ? {
+        color: cell.color,
+        isFormation: cell.isFormation
+    } : null));
+}
 /**
  * 在棋盘上放置棋子
  * @param {Array} board 棋盘

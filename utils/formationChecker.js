@@ -348,7 +348,7 @@ export function checkDragon2(row, col, currentColor, newBoard) {
 }
 
 export function hasNonFormationPieces(opponentColor, board) {
-    debugLog(CONFIG.DEBUG, 'hasNonFormationPieces:', opponentColor);
+    
     for (let row = 0; row < 6; row++) {
         for (let col = 0; col < 6; col++) {
             if (board[row][col]?.color === opponentColor) {
@@ -358,11 +358,11 @@ export function hasNonFormationPieces(opponentColor, board) {
             }
         }
     }
-
+    debugLog(CONFIG.DEBUG, '没有找到不在阵型中的棋子hasNonFormationPieces，对方piece颜色=', opponentColor);
     return false; // 没有找到不在阵型中的棋子
 }
 
-function isStillInFormation(row, col, currentColor, newBoard) {
+export function isStillInFormation(row, col, currentColor, newBoard) {
     const formationData = FORMATION_POSITIONS.get(`${row}${col}`);
     // 检查大方
     const squareResult = checkSquare(currentColor, newBoard, formationData.square);

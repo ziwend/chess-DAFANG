@@ -1,4 +1,4 @@
-import { updatePlayerConfig } from '../../utils/playerConfigManager.js';
+import { updatePlayerConfig,loadPlayerConfig } from '../../utils/playerConfigManager.js';
 
 Page({
   data: {
@@ -9,14 +9,29 @@ Page({
       url: '',
       model: '',
       apiKey: ''
-    }
+    },
+    currentConfig: {}
   },
 
   onLoad: function (options) {
-    const color = options.color;
-    const pages = getCurrentPages();
-    const prevPage = pages[pages.length - 2];
-    const playerConfig = prevPage.data.playerConfig[color];
+    const color = options.color || 'black';
+    const currentConfig = loadPlayerConfig();
+    const playerConfig = currentConfig[color];
+    this.setData({
+      color: color,
+      playerType: playerConfig.playerType,
+      difficulty: playerConfig.difficulty,
+      aiConfig: {
+        url: playerConfig.aiConfig.url,
+        model: playerConfig.aiConfig.model,
+        apiKey: playerConfig.aiConfig.apiKey
+      },
+      currentConfig: currentConfig
+    });
+  },
+  onColorChange: function (e) {
+    const color = e.detail.value;
+    const playerConfig = this.data.currentConfig[color];
     this.setData({
       color: color,
       playerType: playerConfig.playerType,
@@ -28,7 +43,6 @@ Page({
       }
     });
   },
-
   onPlayerTypeChange: function (e) {
     this.setData({
       playerType: e.detail.value

@@ -1,6 +1,20 @@
 <view class="container">
+  <!-- 第一步：选择棋子颜色 -->
   <view class="form-item">
-    <text>选择玩家类型:</text>
+    <text>设置玩家颜色:</text>
+    <radio-group bindchange="onColorChange">
+      <label class="radio">
+        <radio value="black" checked="{{color === 'black'}}" /> 黑方
+      </label>
+      <label class="radio">
+        <radio value="white" checked="{{color === 'white'}}" /> 白方
+      </label>
+    </radio-group>
+  </view>
+
+  <!-- 第二步：玩家类型选择 -->
+  <view class="form-item">
+    <text>{{color === 'black' ? '黑方' : '白方'}}玩家类型:</text>
     <radio-group bindchange="onPlayerTypeChange">
       <label class="radio">
         <radio value="self" checked="{{playerType === 'self'}}" /> 自己
@@ -14,22 +28,25 @@
     </radio-group>
   </view>
 
-  <view wx:if="{{playerType === 'local'}}" class="form-item">
-    <text>选择难度:</text>
-    <radio-group bindchange="onDifficultyChange">
-      <label class="radio">
-        <radio value="easy" checked="{{difficulty === 'easy'}}" /> 容易
-      </label>
-      <label class="radio">
-        <radio value="medium" checked="{{difficulty === 'medium'}}" /> 中等
-      </label>
-      <label class="radio">
-        <radio value="hard" checked="{{difficulty === 'hard'}}" /> 困难
-      </label>
-    </radio-group>
-  </view>
+  <!-- 根据玩家类型显示不同选项 -->
+  <block wx:if="{{playerType === 'local'}}">
+    <view class="form-item">
+      <text>难度设置:</text>
+      <radio-group bindchange="onDifficultyChange">
+        <label class="radio">
+          <radio value="easy" checked="{{difficulty === 'easy'}}" /> 容易
+        </label>
+        <label class="radio">
+          <radio value="medium" checked="{{difficulty === 'medium'}}" /> 中等
+        </label>
+        <label class="radio">
+          <radio value="hard" checked="{{difficulty === 'hard'}}" /> 困难
+        </label>
+      </radio-group>
+    </view>
+  </block>
 
-  <view wx:if="{{playerType === 'ai'}}">
+  <block wx:if="{{playerType === 'ai'}}">
     <view class="form-item">
       <text>API URL:</text>
       <input placeholder="请输入API URL" value="{{aiConfig.url}}" bindinput="onUrlChange" type="text" confirm-type="done" adjust-position="true" />
@@ -42,7 +59,10 @@
       <text>API Key:</text>
       <input placeholder="请输入API Key" value="{{aiConfig.apiKey}}" bindinput="onApiKeyChange" type="text" confirm-type="done" adjust-position="true" />
     </view>
-  </view>
+  </block>
 
-  <button bindtap="saveConfig">保存{{color === 'black' ? '黑方' : '白方'}}棋手设置</button>
+  <!-- 保存按钮 -->
+  <button type="primary" bindtap="saveConfig" class="save-btn">
+    保存{{color === 'black' ? '黑方' : '白方'}}设置
+  </button>
 </view>

@@ -8,7 +8,8 @@ import {
   loadPlayerConfig
 } from '../../utils/playerConfigManager.js';
 import {
-  checkFormation
+  checkFormation,
+  isStillInFormation
 } from '../../utils/formationChecker.js';
 import {
   saveUserMessageToHistory,
@@ -20,7 +21,8 @@ import {
   hasValidMoves,
   updateBoard,
   isMaxPiecesCount,
-  isBoardWillFull
+  isBoardWillFull,
+  getBoardState
 } from '../../utils/boardUtils.js';
 import {
   handleAITurn
@@ -67,7 +69,7 @@ Page({
   },
   openMenu: function () {
     wx.showActionSheet({
-      itemList: ['我的战绩', '设置黑方棋手', '设置白方棋手', '检查github更新', '检查gitee更新'], // 添加“检查更新”选项
+      itemList: ['我的战绩', '设置玩家', '检查github更新', '检查gitee更新'], // 添加“检查更新”选项
       success: res => {
         // 根据选择的菜单项执行相应操作
         if (res.tapIndex === 0) {
@@ -77,8 +79,6 @@ Page({
         } else if (res.tapIndex === 1) {
           this.setPlayer('black');
         } else if (res.tapIndex === 2) {
-          this.setPlayer('white');
-        } else if (res.tapIndex === 3) {
           // 跳转到 GitHub Releases 页面
           wx.setClipboardData({
             data: 'https://github.com/ziwend/chess-DAFANG/releases',
@@ -90,7 +90,7 @@ Page({
               });
             }
           });
-        } else if (res.tapIndex === 4) {
+        } else if (res.tapIndex === 3) {
           // 跳转到 Gitee Releases 页面
           wx.setClipboardData({
             data: 'https://gitee.com/ziwend/chess-DAFANG/releases/',
@@ -250,11 +250,34 @@ Page({
     const ratio = screenWidth / screenHeight > 0.6 ? 0.6 : 0.8 // 不同设备用不同比例
     const boardSize = screenWidth * ratio
     const cellSize = boardSize / 5
-    debugLog(CONFIG.DEBUG, screenWidth, screenHeight, boardSize, cellSize);
+    debugLog(CONFIG.DEBUG, `屏幕尺寸为 ${screenWidth} x ${screenHeight}，比例设置为 ${ratio}，棋盘大小为 ${boardSize}，棋子大小为 ${cellSize}`);
     this.setData({
       boardSize,
       cellSize
-    })
+    });
+
+    if (!this.data.boardRectCache) {
+      const boardRectCache = wx.getStorageSync('boardRectCache');
+      if (boardRectCache) {
+        this.setData({
+          boardRectCache
+        });
+      } else {
+        const query = wx.createSelectorQuery();
+        query.select('.board').boundingClientRect();
+        
+        query.exec((res) => {
+          if (res && res[0]) {
+            // 保存到Storage和data中
+            debugLog(CONFIG.DEBUG, 'getBoardPosition', res[0]);
+            wx.setStorageSync('boardRectCache', res[0]);
+            this.setData({
+              boardRectCache: res[0]
+            });
+          }
+        });
+      }
+    }
     // 加载玩家统计数据
     const playerStats = wx.getStorageSync('playerStats') || {
       totalGames: 0,
@@ -287,7 +310,7 @@ Page({
     const updateData = {
       board: JSON.parse(JSON.stringify(CONFIG.INITIAL_BOARD)),
       currentPlayer: 0, // 重置当前玩家为黑方
-      dragPiece: null, // 当前拖动的棋子信息
+      movingPiece: null, // 当前拖动的棋子信息
       blackCount: 0, // 重置黑方棋子数量
       whiteCount: 0, // 重置白方棋子数量
       extraMoves: 0, // 重置额外移动次数
@@ -590,17 +613,29 @@ Page({
   },
 
   // -------------手动下棋控制逻辑开始--------------
-  handleDragStart: function (e) {
+  handleTouchStart: function (e) {
     // 非移动阶段不处理
-    if (this.data.gamePhase !== CONFIG.GAME_PHASES.MOVING) {
+    if (this.data.gamePhase !== CONFIG.GAME_PHASES.MOVING || this.data.isAnimationInProgress) {
       return;
     }
-    const {
+    /**/
+    const touch = e.changedTouches[0];
+    const validPosition = this.getValidBoardPosition(touch);
+    
+    if (!validPosition) {
+      return;
+    }
+  
+    const { targetRow: row, targetCol: col } = validPosition;
+    const color = this.data.board[row][col].color;
+
+    debugLog(CONFIG.DEBUG, 'handleTouchStart-e.currentTarget.dataset=', e.currentTarget.dataset,row,col,color);
+
+    /*const {
       row,
       col,
       color
-    } = e.currentTarget.dataset;
-
+    } = e.currentTarget.dataset;*/
     // 检查是否是当前玩家的回合
     const currentColor = this.data.players[this.data.currentPlayer];
     if (color !== currentColor) {
@@ -610,17 +645,59 @@ Page({
     if (this.data.playerConfig[currentColor].playerType !== 'self') {
       return;
     }
+    const cellSize = this.data.cellSize;
+    const pieceSize = cellSize * 0.6;
+    const offset = pieceSize / 2;
+
+    const startX = col * cellSize - offset;
+    const startY = row * cellSize - offset;
+    const startPieceIsFormation = this.data.board[row][col].isFormation;
+    this.data.board[row][col] = null;
 
     this.setData({
-      dragPiece: {
+      movingPiece: {
         color: color,
+        initX: startX,
+        initY: startY,
+        currentX: startX,
+        currentY: startY,
         startRow: row,
-        startCol: col
-      }
+        startCol: col,
+        startPieceColor: color,
+        startPieceIsFormation: startPieceIsFormation,
+      },
+      board: this.data.board,
+    });
+    // 触发 touchmove 事件，确保 movingPiece 立即跟随手指
+    setTimeout(() => {
+      debugLog(CONFIG.DEBUG, "movingPiece=", this.data.movingPiece);
+      this.handleTouchMove(e);
+    }, 50);
+    
+  },
+  handleTouchMove: function (e) {
+    if (!this.data.movingPiece) {
+      return;
+    }
+    const now = Date.now();
+  if (now - this.data.lastRender < 16) return; // 60fps限制
+  
+    const touch = e.touches[0];
+    const position = this.getBoardPosition(touch);
+
+    const { boardX, boardY } = position;
+
+    // 更新 movingPiece 的 currentX, currentY
+    const pieceSize = this.data.cellSize * 0.6;
+    const offset = pieceSize / 2;
+    this.setData({
+      'movingPiece.currentX': boardX - offset,
+      'movingPiece.currentY': boardY - offset,
+      lastRender: now
     });
   },
 
-  handleTouchEnd: async function (e) {
+  handleTouchEnd: function (e) {
     if (!this.data.isGameStarted) {
       return;
     }
@@ -630,54 +707,20 @@ Page({
       return;
     }
     // 判断一下移动阶段是否有效
-    if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.data.dragPiece) {
+    if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.data.movingPiece) {
       this.showMessage('请选中要移动的棋子拖动');
       return;
     }
 
     const touch = e.changedTouches[0];
-    const position = await this.getBoardPosition(touch);
-    if (!position) return;
-    const {
-      boardX,
-      boardY,
-      boardRect
-    } = position;
+    const validPosition = this.getValidBoardPosition(touch);
 
-    // 棋子半径（假设为20px，根据实际棋子大小调整）
-    const pieceRadius = 20;
-
-    // 有效范围检测，考虑棋子半径
-    const minX = -pieceRadius;
-    const maxX = boardRect.width + pieceRadius;
-    const minY = -pieceRadius;
-    const maxY = boardRect.height + pieceRadius;
-
-    if (boardX < minX || boardX > maxX || boardY < minY || boardY > maxY) {
+    if (!validPosition) {
+      this.resetMovingPiece();
       return;
     }
 
-    // 计算点击的交叉点
-    //const cellSize = boardRect.width / 5; // 棋盘总宽度除以5个格子
-    
-    //debugLog(CONFIG.DEBUG, "对比一下计算得到的cellSize和设置的是否一样", cellSize, this.data.cellSize);
-    // 计算最近的交叉点
-    const cellSize = this.data.cellSize;
-    let targetCol = Math.round(boardX / cellSize);
-    let targetRow = Math.round(boardY / cellSize);
-
-    // 边界检查
-    targetCol = Math.max(0, Math.min(5, targetCol));
-    targetRow = Math.max(0, Math.min(5, targetRow));
-
-    // 检查点击位置是否在交叉点附近
-    const clickX = targetCol * cellSize;
-    const clickY = targetRow * cellSize;
-    const tolerance = pieceRadius; // 使用棋子半径作为容差范围
-    if (Math.abs(boardX - clickX) > tolerance || Math.abs(boardY - clickY) > tolerance) {
-      // 点击位置离交叉点太远，忽略
-      return;
-    }
+    const { targetRow, targetCol } = validPosition;
 
     // 获取当前玩家颜色
     const currentColor = this.data.players[this.data.currentPlayer];
@@ -694,13 +737,9 @@ Page({
         this.handlePlace(currentColor, targetPosition);
         break;
       case CONFIG.GAME_PHASES.MOVING:
-        const {
-          startRow,
-          startCol
-        } = this.data.dragPiece;
         const movePositions = {
-          startRow,
-          startCol,
+          startRow: this.data.movingPiece.startRow,
+          startCol: this.data.movingPiece.startCol,
           targetRow,
           targetCol
         };
@@ -715,41 +754,67 @@ Page({
     }
   },
 
-  getBoardPosition: function (touch) {
-    if (!this.data.boardRectCache) {
-      const query = wx.createSelectorQuery();
-      query.select('.board').boundingClientRect();
-      debugLog(CONFIG.DEBUG, 'getBoardPosition', query);
-      return new Promise((resolve) => {
-        query.exec((res) => {
-          if (res && res[0]) {
-            // 保存到Storage和data中
-            wx.setStorageSync('boardRectCache', res[0]);
-            this.setData({
-              boardRectCache: res[0]
-            });
-            const boardX = touch.clientX - res[0].left;
-            const boardY = touch.clientY - res[0].top;
-            resolve({
-              boardX,
-              boardY,
-              boardRect: res[0]
-            });
-          } else {
-            resolve(null);
-          }
-        });
-      });
-    } else {
-      const boardX = touch.clientX - this.data.boardRectCache.left;
-      const boardY = touch.clientY - this.data.boardRectCache.top;
+  getValidBoardPosition: function (touch) {
+    const position = this.getBoardPosition(touch);
 
-      return Promise.resolve({
-        boardX,
-        boardY,
-        boardRect: this.data.boardRectCache
-      });
+    const { boardX, boardY, boardRect } = position;
+
+    const pieceRadius = 20; // 棋子半径，按你的配置
+    const minX = -pieceRadius;
+    const maxX = boardRect.width + pieceRadius;
+    const minY = -pieceRadius;
+    const maxY = boardRect.height + pieceRadius;
+
+    if (boardX < minX || boardX > maxX || boardY < minY || boardY > maxY) {
+      return null;
     }
+
+    const cellSize = this.data.cellSize;
+    let targetCol = Math.round(boardX / cellSize);
+    let targetRow = Math.round(boardY / cellSize);
+
+    // 边界修正
+    targetCol = Math.max(0, Math.min(CONFIG.BOARD_SIZE - 1, targetCol));
+    targetRow = Math.max(0, Math.min(CONFIG.BOARD_SIZE - 1, targetRow));
+
+    const clickX = targetCol * cellSize;
+    const clickY = targetRow * cellSize;
+    const tolerance = pieceRadius;
+    // 点击位置离交叉点太远，忽略
+    if (Math.abs(boardX - clickX) > tolerance || Math.abs(boardY - clickY) > tolerance) {
+      return null;
+    }
+
+    return {
+      targetRow,
+      targetCol,
+      boardX,
+      boardY,
+      boardRect
+    };
+  },
+
+  resetMovingPiece: function () {
+    if (!this.data.movingPiece) return;
+
+    board[this.data.movingPiece.startRow][this.data.movingPiece.startCol] = {
+      color: this.data.movingPiece.startPieceColor,
+      isFormation: this.data.movingPiece.startPieceIsFormation
+    }
+    this.setData({
+      movingPiece: null,
+      board
+    });
+  },
+  getBoardPosition: function (touch) {
+    const boardX = touch.clientX - this.data.boardRectCache.left;
+    const boardY = touch.clientY - this.data.boardRectCache.top;
+
+    return {
+      boardX,
+      boardY,
+      boardRect: this.data.boardRectCache
+    };
   },
 
   handlePlace: function (currentColor, targetPosition) {
@@ -837,9 +902,35 @@ Page({
   // 抽取：处理移动操作
   handleMove: function (color, movePositions) {
     if (!this.validatePosition(movePositions, this.data.gamePhase, color)) {
+      // 每次只能移动一格
+      this.resetMovingPiece();
       return;
     }
-    this.handleMoveDrop(color, movePositions);
+
+    const {
+      startRow,
+      startCol,
+      targetRow,
+      targetCol
+    } = movePositions;
+    if (CONFIG.DEBUG) {
+      // 直接保存 decision
+      const decision = {
+        action: CONFIG.GAME_PHASES.MOVING,
+        position: [startRow, startCol],
+        newPosition: [targetRow, targetCol]
+      };
+
+      const currentHistory = Array.isArray(this.data.gameHistory) ? this.data.gameHistory : [];
+      this.setData({
+        gameHistory: [...currentHistory, {
+          role: "assistant",
+          content: JSON.stringify(decision)
+        }]
+      });
+    }
+
+    this.handleAfterMove(color, startRow, startCol, targetRow, targetCol);
   },
 
   // 处理移动阶段的落子逻辑
@@ -850,57 +941,84 @@ Page({
       targetRow,
       targetCol
     } = movePositions;
-    debugLog(CONFIG.DEBUG,"移动棋子",movePositions);
+
     const cellSize = this.data.cellSize;
-  
-    const startLeft = this.data.boardRectCache.left + startCol * cellSize;
-    const startTop = this.data.boardRectCache.top + startRow * cellSize;
-    const endLeft = this.data.boardRectCache.left + targetCol * cellSize;
-    const endTop = this.data.boardRectCache.top + targetRow * cellSize;
-    
+    const pieceSize = cellSize * 0.6;
+    const offset = pieceSize / 2; // 偏移量是棋子大小的一半
+
+    // 计算起始位置时，去掉居中的偏移
+    const startX = startCol * cellSize - offset;
+    const startY = startRow * cellSize - offset;
+    const endX = targetCol * cellSize - offset;
+    const endY = targetRow * cellSize - offset;
+    this.data.board[startRow][startCol] = null;
     // 1. 清空起点，设置 movingPiece 出现
-    const newBoard = this.updateBoard(null, startRow, startCol, null, null);
     let updateData = {
-      board: newBoard,
       movingPiece: {
         color: color,
-        left: startLeft,
-        top: startTop
+        initX: startX,  // 记录初始位置
+        initY: startY
       },
+      board: this.data.board,
       isAnimationInProgress: true
     };
+    // 先显示到起点 (startX, startY)
+    const appearAnimation = wx.createAnimation({
+      duration: 0, // 直接到起点，不要动画
+    });
+    appearAnimation.translate(startX, startY).step();
+    updateData.moveAnimation = appearAnimation.export();
+    if (CONFIG.DEBUG) {
+      // 直接保存 decision
+      const decision = {
+        action: CONFIG.GAME_PHASES.MOVING,
+        position: [startRow, startCol],
+        newPosition: [targetRow, targetCol]
+      };
+
+      const currentHistory = Array.isArray(this.data.gameHistory) ? this.data.gameHistory : [];
+
+      updateData.gameHistory = [...currentHistory, {
+        role: "assistant",
+        content: JSON.stringify(decision)
+      }];
+    }
     this.setData(updateData);
-    debugLog(CONFIG.DEBUG,"设置起始位置",this.data.movingPiece,startLeft ,startTop,endLeft,endTop);
-    // 2. 延迟一点（30ms），再把 movingPiece 位置设置到终点，触发 CSS transition 动画
+
     setTimeout(() => {
-      this.setData({
-        'movingPiece.left': endLeft,
-        'movingPiece.top': endTop
+      const moveAnimation = wx.createAnimation({
+        duration: 1500,
+        timingFunction: 'ease-out',
       });
-    }, 150);
-    debugLog(CONFIG.DEBUG,"结束动画",this.data.movingPiece);
-    // 3. 动画结束后，更新最终的棋盘状态
-    setTimeout(() => {
-      debugLog(CONFIG.DEBUG,"1.5秒动画 + 100ms缓冲",this.data.movingPiece);
-      this.handleAfterMove(color, startRow, startCol, targetRow, targetCol);
-    }, 1600); // 1.5秒动画 + 100ms缓冲
+      moveAnimation.translate(endX, endY).step();
+      this.setData({
+        moveAnimation: moveAnimation.export()
+      });
+
+      // 动画结束后处理
+      setTimeout(() => {
+        this.handleAfterMove(color, startRow, startCol, targetRow, targetCol);
+      }, 1600);  // 略长于动画时间
+    }, 50);
   },
-  
+
   // 处理移动棋子后的游戏状态
-  handleAfterMove: function (color, startRow, startCol, targetRow, targetCol) {
+  handleAfterMove: async function (color, startRow, startCol, targetRow, targetCol) {
     // 更新棋盘
     const newBoard = this.updateBoard(color, startRow, startCol, targetRow, targetCol);
     const formationUpdate = checkFormation(targetRow, targetCol, color, newBoard);
 
     let updateData = {
       board: newBoard,
-      movingPiece: null
+      movingPiece: null,
+      moveAnimation: null,
+      isAnimationInProgress: false,
     };
 
     const formationUpdateDestroy = checkFormation(startRow, startCol, color, this.data.board);
 
     this.handleDestroyedFormation(formationUpdateDestroy, newBoard, color);
-
+    let lastActionResult = null;
 
     if (formationUpdate) {
       this.updateFormationStatus(formationUpdate, newBoard);
@@ -908,8 +1026,8 @@ Page({
       // 显示提示
       this.showMessage('形成' + formationUpdate.formationType);
       Object.assign(updateData, formationUpdate);
-      updateData.lastActionResult = `你上次移动到的位置[${targetRow},${targetCol}]形成了'${formationUpdate.formationType}'阵型，获得了${formationUpdate.extraMoves}次吃子机会。`;
-
+      lastActionResult = `你上次移动到的位置[${targetRow},${targetCol}]形成了'${formationUpdate.formationType}'阵型，获得了${formationUpdate.extraMoves}次吃子机会。`;
+      updateData.gamePhase = CONFIG.GAME_PHASES.REMOVING;
       updateData.message = `请移除${this.data.currentPlayer === 1 ? '黑方' : '白方'}棋子`;
     } else {
       updateData.currentPlayer = 1 - this.data.currentPlayer;
@@ -924,33 +1042,36 @@ Page({
       startCol,
       targetRow,
       targetCol
-    }; // 记录最后一次移动
-
-    updateData.flashPiece = {
-      row: targetRow,
-      col: targetCol
-    };
-    updateData.isAnimationInProgress = true;
-    updateData.dragPiece = null;
-
-    // 直接保存 decision
-    const decision = {
-      action: CONFIG.GAME_PHASES.MOVING,
-      position: [startRow, startCol],
-      newPosition: [targetRow, targetCol]
     };
 
-    const currentHistory = Array.isArray(this.data.gameHistory) ? this.data.gameHistory : [];
-    if (CONFIG.DEBUG) {
-      updateData.gameHistory = [...currentHistory, {
-        role: "assistant",
-        content: JSON.stringify(decision)
-      }];
+    // updateData.flashPiece = {      row: targetRow,      col: targetCol    };
+    updateData.movingPiece = null;
+
+
+    // 先检查游戏是否结束
+    const winner = await this.checkGameOver();
+    if (winner) {
+      return;
     }
 
-    // 更新数据并设置闪动棋子
+    if (CONFIG.DEBUG) {
+      const boardState = getBoardState(this.data.board);
+      const feedback = lastActionResult || '';
+
+      // 定义消息模板
+      const messageTemplate = `当前棋盘状态: ${JSON.stringify(boardState)} ，你的棋子颜色: ${color}，` +
+        `当前阶段: '${this.data.gamePhase}'` +
+        '。请根据当前棋局给出最佳决策。';
+
+      updateData.gameHistory = [...this.data.gameHistory, {
+        role: "user",
+        content: feedback + messageTemplate
+      }];
+    }
     this.setData(updateData);
+    this.handleAITurn(this.data.gamePhase, this.data.players[this.data.currentPlayer]);
   },
+
   // 抽取：处理手动双击移除操作
   handleRemove: function (currentColor, targetPosition) {
     // 吃子阶段：双击对方棋子
@@ -992,39 +1113,17 @@ Page({
   },
 
   onAnimationEnd: async function (e) {
-    // 标记动画结束
-    let updateData = {
-      isAnimationInProgress: false
-    };
-    if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && this.data.flashPiece.row) {
-      // 先检查游戏是否结束
-      const winner = await this.checkGameOver();
-      if (winner) {
-        return;
-      }
-      updateData.flashPiece = {
-        row: null,
-        col: null
-      };
-      if (this.data.extraMoves > 0) {
-        updateData.gamePhase = CONFIG.GAME_PHASES.REMOVING;
-      } else {
-        updateData.gamePhase = CONFIG.GAME_PHASES.MOVING;
-      }
-      if (CONFIG.DEBUG) {
-        const userMessage = this.saveUserMessageToHistory(updateData.gamePhase, this.data.players[this.data.currentPlayer], this.data.gameHistory, this.data.lastActionResult);
-        updateData.gameHistory = userMessage.gameHistory;
+
+    if (this.data.gamePhase === CONFIG.GAME_PHASES.PLACING) {
+      // 标记动画结束
+      let updateData = {
+        isAnimationInProgress: false,
+        flashPiece: {
+          row: null,
+          col: null
+        }
       }
 
-      updateData.lastActionResult = null;
-      this.setData(updateData);
-
-      this.handleAITurn(this.data.gamePhase, this.data.players[this.data.currentPlayer]);
-    } else if (this.data.gamePhase === CONFIG.GAME_PHASES.PLACING) {
-      updateData.flashPiece = {
-        row: null,
-        col: null
-      };
       // 放置最后一颗棋子后
       // 检查棋盘是否已满
       if (this.isMaxPiecesCount()) {
@@ -1062,9 +1161,10 @@ Page({
 
   // 处理移除棋子后的游戏状态
   handleAfterRemove: async function (row, col, color) {
+    const formationUpdateDestroy = checkFormation(row, col, color, this.data.board);
     // 更新棋盘
-    let newBoard = this.updateBoard(null, row, col, null, null);
-
+    this.data.board[row][col] = null;
+    const newBoard = this.data.board;
     let updateData = {
       board: newBoard,
       flashPiece: {
@@ -1075,7 +1175,6 @@ Page({
       isAnimationInProgress: false
     };
 
-    const formationUpdateDestroy = checkFormation(row, col, color, this.data.board);
 
     // 移除棋子后处理阵型状态
     this.handleDestroyedFormation(formationUpdateDestroy, newBoard, color);
@@ -1163,7 +1262,7 @@ Page({
       formationUpdateDestroy.formationPositions.forEach(pos => {
         const [row, col] = pos;
         if (newBoard[row][col]) {
-          const isStillInFormationFlag = checkFormation(row, col, color, newBoard);
+          const isStillInFormationFlag = isStillInFormation(row, col, color, newBoard);
           if (!isStillInFormationFlag) {
             newBoard[row][col].isFormation = false;
           }
@@ -1242,8 +1341,8 @@ Page({
       });
   },
   // 悔棋逻辑
-  undoMove: function (e) {
-    const color = e.currentTarget.dataset.color; // 获取悔棋的玩家颜色
+  undoMove: function () {
+    const color = this.data.players[this.data.currentPlayer]; // 获取悔棋的玩家颜色
     debugLog(CONFIG.DEBUG, `${color}方请求悔棋`);
 
     // 检查是否有历史记录可以撤销
@@ -1259,7 +1358,7 @@ Page({
     let assistantAction = null;
     // 恢复棋盘状态
     let newBoard = this.data.board;
-    let updateData = {};
+    let updateData = { isAnimationInProgress: false };
     updateData.gameHistory = JSON.parse(JSON.stringify(this.data.gameHistory));
     for (let i = this.data.gameHistory.length - 1; i >= 0; i--) {
       const record = this.data.gameHistory[i];
