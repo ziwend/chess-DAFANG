@@ -242,42 +242,6 @@ Page({
     });
   },
   onLoad: function () {
-    const res = wx.getSystemInfoSync()
-
-    const screenWidth = res.windowWidth
-    const screenHeight = res.windowHeight
-
-    const ratio = screenWidth / screenHeight > 0.6 ? 0.6 : 0.8 // 不同设备用不同比例
-    const boardSize = screenWidth * ratio
-    const cellSize = boardSize / 5
-    debugLog(CONFIG.DEBUG, `屏幕尺寸为 ${screenWidth} x ${screenHeight}，比例设置为 ${ratio}，棋盘大小为 ${boardSize}，棋子大小为 ${cellSize}`);
-    this.setData({
-      boardSize,
-      cellSize
-    });
-
-    if (!this.data.boardRectCache) {
-      const boardRectCache = wx.getStorageSync('boardRectCache');
-      if (boardRectCache) {
-        this.setData({
-          boardRectCache
-        });
-      } else {
-        const query = wx.createSelectorQuery();
-        query.select('.board').boundingClientRect();
-        
-        query.exec((res) => {
-          if (res && res[0]) {
-            // 保存到Storage和data中
-            debugLog(CONFIG.DEBUG, 'getBoardPosition', res[0]);
-            wx.setStorageSync('boardRectCache', res[0]);
-            this.setData({
-              boardRectCache: res[0]
-            });
-          }
-        });
-      }
-    }
     // 加载玩家统计数据
     const playerStats = wx.getStorageSync('playerStats') || {
       totalGames: 0,
@@ -290,13 +254,71 @@ Page({
     // 获取每日任务
     const dailyTasks = RewardManager.getDailyTasks();
 
-    // 加载缓存的棋盘位置信息
-    const boardRectCache = wx.getStorageSync('boardRectCache');
-
-    this.setData({
+    // 2. 初始化棋盘估算尺寸
+    const updateData = {
       playerStats,
       dailyTasks,
-      boardRectCache
+      boardRectReady: false // 明确标记未准备好
+    };
+
+    // 3. 尝试读取缓存或计算估算值
+    const cachedRect = wx.getStorageSync('boardRectCache');
+    if (cachedRect) {
+      updateData.boardRectCache = cachedRect;
+    } else {
+      const { windowWidth, windowHeight } = wx.getSystemInfoSync();
+      const boardSize = windowWidth * (windowWidth / windowHeight > 0.6 ? 0.6 : 0.8);
+
+      updateData.boardRectCache = {
+        boardSize,
+        cellSize: boardSize / 5,
+        pieceSize: boardSize / 5 * 0.7
+      };
+    }
+
+    this.setData(updateData);    
+  },
+  onReady: async function() {
+    // 1. 如果已有缓存且未失效，直接使用
+    if (this.data.boardRectReady) return;
+  
+    // 2. 获取实际DOM位置
+    try {
+      await this.initBoardRect();
+    } catch (err) {
+      debugLog(CONFIG.DEBUG, '获取棋盘位置失败:', null ,err);
+      // 降级使用估算值
+      this.setData({ boardRectReady: true });
+    }
+  },
+  // 初始化棋盘尺寸和位置
+  initBoardRect: function() {
+    return new Promise((resolve) => {
+      wx.createSelectorQuery()
+        .select('.board')
+        .boundingClientRect()
+        .exec((res) => {
+          if (res?.[0]) {
+            const exactRect = {
+              ...this.data.boardRectCache, // 保留估算的尺寸
+              ...res[0], // 覆盖实际位置(left/top等)
+              lastUpdated: Date.now()
+            };
+  
+            this.setData({
+              boardRectCache: exactRect,
+              boardRectReady: true
+            });
+            
+            wx.setStorageSync('boardRectCache', exactRect);
+            debugLog(CONFIG.DEBUG, '棋盘位置初始化完成', exactRect);
+            resolve();
+          } else {
+            console.warn('使用估算尺寸');
+            this.setData({ boardRectReady: true });
+            resolve();
+          }
+        });
     });
   },
 
@@ -621,15 +643,15 @@ Page({
     /**/
     const touch = e.changedTouches[0];
     const validPosition = this.getValidBoardPosition(touch);
-    
+
     if (!validPosition) {
       return;
     }
-  
+
     const { targetRow: row, targetCol: col } = validPosition;
     const color = this.data.board[row][col].color;
 
-    debugLog(CONFIG.DEBUG, 'handleTouchStart-e.currentTarget.dataset=', e.currentTarget.dataset,row,col,color);
+    debugLog(CONFIG.DEBUG, 'handleTouchStart-e.currentTarget.dataset=', e.currentTarget.dataset, row, col, color);
 
     /*const {
       row,
@@ -645,9 +667,9 @@ Page({
     if (this.data.playerConfig[currentColor].playerType !== 'self') {
       return;
     }
-    const cellSize = this.data.cellSize;
-    const pieceSize = cellSize * 0.6;
-    const offset = pieceSize / 2;
+    const cellSize = this.data.boardRectCache.cellSize;
+
+    const offset = this.data.boardRectCache.pieceSize / 2;
 
     const startX = col * cellSize - offset;
     const startY = row * cellSize - offset;
@@ -673,23 +695,22 @@ Page({
       debugLog(CONFIG.DEBUG, "movingPiece=", this.data.movingPiece);
       this.handleTouchMove(e);
     }, 50);
-    
+
   },
   handleTouchMove: function (e) {
     if (!this.data.movingPiece) {
       return;
     }
     const now = Date.now();
-  if (now - this.data.lastRender < 16) return; // 60fps限制
-  
+    if (now - this.data.lastRender < 16) return; // 60fps限制
+
     const touch = e.touches[0];
     const position = this.getBoardPosition(touch);
 
     const { boardX, boardY } = position;
 
     // 更新 movingPiece 的 currentX, currentY
-    const pieceSize = this.data.cellSize * 0.6;
-    const offset = pieceSize / 2;
+    const offset = this.data.boardRectCache.pieceSize / 2;
     this.setData({
       'movingPiece.currentX': boardX - offset,
       'movingPiece.currentY': boardY - offset,
@@ -701,7 +722,11 @@ Page({
     if (!this.data.isGameStarted) {
       return;
     }
-
+    // 获取当前玩家颜色
+    const currentColor = this.data.players[this.data.currentPlayer];
+    if (this.data.playerConfig[currentColor].playerType !== 'self') {
+      return;
+    }
     if (this.data.isAnimationInProgress) {
       this.showMessage('动画未结束，请稍后再试');
       return;
@@ -722,11 +747,6 @@ Page({
 
     const { targetRow, targetCol } = validPosition;
 
-    // 获取当前玩家颜色
-    const currentColor = this.data.players[this.data.currentPlayer];
-    if (this.data.playerConfig[currentColor].playerType !== 'self') {
-      return;
-    }
     const targetPosition = {
       targetRow,
       targetCol
@@ -757,19 +777,20 @@ Page({
   getValidBoardPosition: function (touch) {
     const position = this.getBoardPosition(touch);
 
-    const { boardX, boardY, boardRect } = position;
-
-    const pieceRadius = 20; // 棋子半径，按你的配置
+    const { boardX, boardY } = position;
+    const cellSize = this.data.boardRectCache.cellSize;
+    const pieceRadius = this.data.boardRectCache.pieceSize / 2; // 棋子半径，按你的配置
     const minX = -pieceRadius;
-    const maxX = boardRect.width + pieceRadius;
+    const maxX = this.data.boardRectCache.boardSize + pieceRadius;
     const minY = -pieceRadius;
-    const maxY = boardRect.height + pieceRadius;
+    const maxY = this.data.boardRectCache.boardSize + pieceRadius;
 
     if (boardX < minX || boardX > maxX || boardY < minY || boardY > maxY) {
+      debugLog(CONFIG.DEBUG, 'getValidBoardPosition-touch outside board', position, minX, maxX, minY, maxY);
       return null;
     }
 
-    const cellSize = this.data.cellSize;
+
     let targetCol = Math.round(boardX / cellSize);
     let targetRow = Math.round(boardY / cellSize);
 
@@ -782,20 +803,20 @@ Page({
     const tolerance = pieceRadius;
     // 点击位置离交叉点太远，忽略
     if (Math.abs(boardX - clickX) > tolerance || Math.abs(boardY - clickY) > tolerance) {
+      debugLog(CONFIG.DEBUG, 'getValidBoardPosition-touch outside board', position, clickX, clickY, tolerance);
       return null;
     }
 
     return {
       targetRow,
       targetCol,
-      boardX,
-      boardY,
-      boardRect
     };
   },
 
   resetMovingPiece: function () {
     if (!this.data.movingPiece) return;
+
+    const board = this.data.board;
 
     board[this.data.movingPiece.startRow][this.data.movingPiece.startCol] = {
       color: this.data.movingPiece.startPieceColor,
@@ -813,7 +834,6 @@ Page({
     return {
       boardX,
       boardY,
-      boardRect: this.data.boardRectCache
     };
   },
 
@@ -827,7 +847,7 @@ Page({
 
   // 处理无效的放置
   handleInvalidPlacement: function (color, targetPosition) {
-    const message = `${color}方上次放置的位置 [${targetPosition}] 无效，请重新选择`;
+    const message = `${color}方放置的第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列位置无效，请重新选择`;
     this.showMessage(message);
   },
   // 处理放置阶段的落子逻辑
@@ -942,9 +962,9 @@ Page({
       targetCol
     } = movePositions;
 
-    const cellSize = this.data.cellSize;
-    const pieceSize = cellSize * 0.6;
-    const offset = pieceSize / 2; // 偏移量是棋子大小的一半
+    const cellSize = this.data.boardRectCache.cellSize;
+
+    const offset = this.data.boardRectCache.pieceSize / 2; // 偏移量是棋子大小的一半
 
     // 计算起始位置时，去掉居中的偏移
     const startX = startCol * cellSize - offset;
@@ -1047,13 +1067,6 @@ Page({
     // updateData.flashPiece = {      row: targetRow,      col: targetCol    };
     updateData.movingPiece = null;
 
-
-    // 先检查游戏是否结束
-    const winner = await this.checkGameOver();
-    if (winner) {
-      return;
-    }
-
     if (CONFIG.DEBUG) {
       const boardState = getBoardState(this.data.board);
       const feedback = lastActionResult || '';
@@ -1069,6 +1082,11 @@ Page({
       }];
     }
     this.setData(updateData);
+    // 先检查游戏是否结束
+    const winner = await this.checkGameOver();
+    if (winner) {
+      return;
+    }
     this.handleAITurn(this.data.gamePhase, this.data.players[this.data.currentPlayer]);
   },
 
@@ -1080,7 +1098,7 @@ Page({
     } else if (Date.now() - this.lastTapTime < 600) { // 调整为500ms   
       // 移除对方棋子            
       if (!this.validatePosition(targetPosition, this.data.gamePhase, currentColor)) {
-        const message = `你上次选择移除的位置: [${targetPosition}]无效，有更优先的棋子可移除，请重新选择`;
+        const message = `第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列棋子不能移除，请重新选择`;
         this.showMessage(message);
         return;
       }

@@ -6,20 +6,22 @@
 
     <!-- 黑子棋盒 -->
     <view class="player-box">
-        <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}">
-            <text class="arrow-text">-></text>
-        </view>
-        <view class="piece-box black-box" style="width: {{cellSize * 1.25}}px; height: {{cellSize * 0.75}}px;">
-            <view class="piece black" style="width: {{cellSize * 0.5}}px; height: {{cellSize * 0.5}}px;">
+        <!-- 左侧箭头按钮 -->
+    <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}" 
+          style="left: calc(50% - {{boardRectCache.cellSize * 1.2}}px)">
+        <text class="arrow-text">-></text> <!-- 箭头方向可根据需要调整 -->
+    </view>
+        <view class="piece-box black-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
+            <view class="piece black" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px;">
                 <text class="piece-count">x{{blackCount}}</text>
             </view>
         </view>
-        <view class="stats-card" wx:if="{{playerConfig.black.playerType === 'self'}}" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+        <view class="stats-card" wx:if="{{playerConfig.black.playerType === 'self'}}" style="left: calc(50% + {{boardRectCache.cellSize * 0.85}}px )">
             <view class="points-icon">🏅{{playerStats.totalPoints}}</view>
             <text class="help-icon" bindtap="toggleDailyTasks">?</text>
         </view>
         <!-- 独立定位的难度条 -->
-        <view class="difficulty-bar" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+        <view class="difficulty-bar" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black" style="left: calc(50% + {{boardRectCache.cellSize * 0.85}}px)">
             {{playerConfig.black.difficulty === 'easy' ? '▰▱▱' : 
           (playerConfig.black.difficulty === 'medium' ? '▰▰▱' : '▰▰▰')}}
         </view>
@@ -44,27 +46,27 @@
         <!-- 棋盘蒙版 -->
         <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
 
-        <view class="board" style="width: {{boardSize}}px; height: {{boardSize}}px;" bindtouchstart="handleTouchStart" bindtouchmove="handleTouchMove" bindtouchend="handleTouchEnd">
+        <view class="board" style="width: {{boardRectCache.boardSize}}px; height: {{boardRectCache.boardSize}}px;" bindtouchstart="handleTouchStart" bindtouchmove="handleTouchMove" bindtouchend="handleTouchEnd">
             <!-- 新增一层，单独绘制 movingPiece -->
-            <view wx:if="{{movingPiece}}" class="piece moving-piece {{movingPiece.color}}" animation="{{moveAnimation}}" style="width: {{cellSize * 0.6}}px; height: {{cellSize * 0.6}}px; left: {{movingPiece.currentX}}px; top: {{movingPiece.currentY}}px;">
+            <view wx:if="{{movingPiece}}" class="piece moving-piece {{movingPiece.color}}" animation="{{moveAnimation}}" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px; left: {{movingPiece.currentX}}px; top: {{movingPiece.currentY}}px;">
             </view>
             <!-- 横线 -->
             <view class="horizontal-lines">
-                <view class="horizontal-line" wx:for="{{6}}" wx:key="index" style="top: {{index * cellSize}}px; width: {{boardSize}}px;">
+                <view class="horizontal-line" wx:for="{{6}}" wx:key="index" style="top: {{index * boardRectCache.cellSize}}px; width: {{boardRectCache.boardSize}}px;">
                 </view>
             </view>
 
             <!-- 竖线 -->
             <view class="vertical-lines">
-                <view class="vertical-line" wx:for="{{6}}" wx:key="index" style="left: {{index * cellSize}}px; height: {{boardSize}}px;">
+                <view class="vertical-line" wx:for="{{6}}" wx:key="index" style="left: {{index * boardRectCache.cellSize}}px; height: {{boardRectCache.boardSize}}px;">
                 </view>
             </view>
 
             <!-- 交叉点和棋子 -->
             <view wx:for="{{board}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="rowIndex">
                 <view wx:for="{{row}}" wx:for-item="cell" wx:for-index="colIndex" wx:key="colIndex">
-                    <view class="intersection" style="left: {{colIndex * cellSize}}px; top: {{rowIndex * cellSize}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}">
-                        <view wx:if="{{cell}}" class="piece  static-piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}" style="width: {{cellSize * 0.6}}px; height: {{cellSize * 0.6}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}" data-color="{{cell.color}}"  bindanimationend="onAnimationEnd">
+                    <view class="intersection" style="left: {{colIndex * boardRectCache.cellSize}}px; top: {{rowIndex * boardRectCache.cellSize}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}">
+                        <view wx:if="{{cell}}" class="piece  static-piece {{cell.color}} {{cell.isFormation ? 'formation-border' : ''}} {{flashPiece.row === rowIndex && flashPiece.col === colIndex ? 'flash' : ''}}" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px;" data-row="{{rowIndex}}" data-col="{{colIndex}}" data-color="{{cell.color}}"  bindanimationend="onAnimationEnd">
                         </view>
                     </view>
                 </view>
@@ -75,21 +77,23 @@
     <!-- 白子棋盒 -->
     <view class="player-box">
 
-        <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}">
-            <text class="arrow-text">-></text>
-        </view>
-        <view class="piece-box white-box" style="width: {{cellSize * 1.25}}px; height: {{cellSize * 0.75}}px;">
-            <view class="piece white" style="width: {{cellSize * 0.5}}px; height: {{cellSize * 0.5}}px;">
+        <!-- 左侧箭头 -->
+    <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}" 
+          style="left: calc(50% - {{boardRectCache.cellSize * 1.2}}px)">
+        <text class="arrow-text">-></text> <!-- 箭头方向可根据需要调整 -->
+    </view>
+        <view class="piece-box white-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
+            <view class="piece white" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px;">
                 <text class="piece-count">x{{whiteCount}}</text>
             </view>
 
         </view>
-        <view class="stats-card" wx:if="{{playerConfig.white.playerType === 'self'}}" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+        <view class="stats-card" wx:if="{{playerConfig.white.playerType === 'self'}}" style="left: calc(50% + {{boardRectCache.cellSize * 0.75}}px + 10rpx)">
             <view class="points-icon">🏅{{playerStats.totalPoints}}</view>
             <text class="help-icon" bindtap="toggleDailyTasks">?</text>
         </view>
         <!-- 独立定位的难度条 -->
-        <view class="difficulty-bar" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white" style="left: calc(50% + {{cellSize * 0.625}}px + 10rpx)">
+        <view class="difficulty-bar" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white" style="left: calc(50% + {{boardRectCache.cellSize * 0.75}}px + 10rpx)">
             {{playerConfig.white.difficulty === 'easy' ? '▰▱▱' : 
           (playerConfig.white.difficulty === 'medium' ? '▰▰▱' : '▰▰▰')}}
         </view>

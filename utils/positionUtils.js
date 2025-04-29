@@ -13,10 +13,9 @@ export function getValidPositions(phase, currentColor, data) {
         if (phase === CONFIG.GAME_PHASES.MOVING) return getValidMoves(currentColor, opponentColor, data);
         if (phase === CONFIG.GAME_PHASES.REMOVING) return getValidRemovePositions(currentColor, opponentColor, data);
     } catch (error) {
-        debugLog(CONFIG.DEBUG, 'Error in getValidPositions:', error);
-    }
-
-    throw new Error('No Valid Positions!');
+        debugLog(CONFIG.DEBUG, 'Error in getValidPositions:', error,error);
+        throw new Error('No Valid Positions!',error);
+    }    
 }
 
 function getValidPlacePositions(currentColor, opponentColor, data) {
@@ -232,39 +231,35 @@ function evaluatePositions(board, currentColor, opponentColor, availablePosition
     let bestSelfPosition = [];
     let bestOpponentPosition = [];
 
-    outerLoop:
     for (let row = 0; row < CONFIG.BOARD_SIZE; row++) {
         for (let col = 0; col < CONFIG.BOARD_SIZE; col++) {
-            if (board[row][col]) continue; // 已有棋子，跳过
+            if (board[row][col]) {
+                continue; // 如果该位置已经有棋子，则跳过
+            }
 
-            const result = getBestFormationPosition(row, col, board, currentColor, opponentColor);
-
+            // 对空位row, col检查是否可以形成阵型
+            const result = getBestFormationPosition(row, col, board, currentColor, opponentColor, availablePositions);
             if (result.bestSelfPosition) {
-                if (result.maxSelfExtraMoves > maxSelfExtraMoves) {
+                if (maxSelfExtraMoves < result.maxSelfExtraMoves) {
                     maxSelfExtraMoves = result.maxSelfExtraMoves;
-                    bestSelfPosition = [result.bestSelfPosition];
-                } else if (result.maxSelfExtraMoves === maxSelfExtraMoves) {
-                    bestSelfPosition.push(result.bestSelfPosition);
-                }
-                if (maxSelfExtraMoves > 0) {
-                    // 如果发现可以形成己方阵型，且额外移动数大于0，直接返回
-                    break outerLoop;
+                    bestSelfPosition = [result.bestSelfPosition]; // 如果当前位置的额外移动次数大于之前的最大值，则更新
+                } else if (maxSelfExtraMoves === result.maxSelfExtraMoves) {
+                    bestSelfPosition.push(result.bestSelfPosition); // 添加到相等位置数组                    
                 }
             } else if (result.bestOpponentPosition) {
-                if (result.maxOpponentExtraMoves > maxOpponentExtraMoves) {
+                if (maxOpponentExtraMoves < result.maxOpponentExtraMoves) {
                     maxOpponentExtraMoves = result.maxOpponentExtraMoves;
                     bestOpponentPosition = [result.bestOpponentPosition];
-                } else if (result.maxOpponentExtraMoves === maxOpponentExtraMoves) {
-                    bestOpponentPosition.push(result.bestOpponentPosition);
+                } else if (maxOpponentExtraMoves === result.maxOpponentExtraMoves) {
+                    bestOpponentPosition.push(result.bestOpponentPosition); // 添加到相等位置数组
+
                 }
-            } else {
-                availablePositions.add(JSON.stringify([row, col]));
             }
         }
     }
 
     if (availablePositions.size === 1) {
-        bestSelfPosition = Array.from(availablePositions).map(p => JSON.parse(p));
+        bestSelfPosition = Array.from(availablePositions).map(p => JSON.parse(p));        
     }
 
     return {
@@ -275,39 +270,76 @@ function evaluatePositions(board, currentColor, opponentColor, availablePosition
     };
 }
 
-function getBestFormationPosition(row, col, board, currentColor, opponentColor) {
+function getBestFormationPosition(row, col, board, currentColor, opponentColor, availablePositions) {
     let bestSelfPosition = null;
     let bestOpponentPosition = null;
     let maxSelfExtraMoves = 0;
     let maxOpponentExtraMoves = 0;
+    let hasFoundSelfPiece = false;
+    let hasFoundOpponentPiece = false;
 
     for (let [deltaRow, deltaCol] of DIRECTIONS.NEIGHBORS) {
         const neighborRow = row + deltaRow;
         const neighborCol = col + deltaCol;
 
-        if (!isInBoard(neighborRow, neighborCol)) continue;
+        // 1. 检查是否在棋盘内
+        if (!isInBoard(neighborRow, neighborCol)) {
+            continue;
+        }
 
         // 2. 获取邻居位置的棋子，如果空位row, col的旁边neighborRow, neighborCol还是空位，则继续下一次循环
         const neighborPiece = board[neighborRow][neighborCol];
-        if (!neighborPiece) continue;
+        if (!neighborPiece) {
+            continue;
+        }
 
-        if (neighborPiece.color === currentColor && !bestSelfPosition) {
+        // 3. 找到己方棋子，只处理一次
+        if (neighborPiece.color === currentColor && !hasFoundSelfPiece) {
+            hasFoundSelfPiece = true;
             const selfFormation = checkFormation(row, col, currentColor, board);
             if (selfFormation) {
-                bestSelfPosition = [row, col];
                 maxSelfExtraMoves = selfFormation.extraMoves;
-                return { bestSelfPosition, bestOpponentPosition, maxSelfExtraMoves, maxOpponentExtraMoves };
+                bestSelfPosition = [row, col];
+                // 找到己方可以形成阵型的位置，直接返回
+                return {
+                    bestSelfPosition,
+                    bestOpponentPosition,
+                    maxSelfExtraMoves,
+                    maxOpponentExtraMoves
+                };
             }
-        } else if (neighborPiece.color === opponentColor && !bestOpponentPosition) {
+            if (hasFoundOpponentPiece) {
+                // 如果已经找到对方棋子，则周围既有己方，又有对方旗子，且都已经判断过阵型，不再继续
+                break;
+            }
+        }
+        // 4 找到对方棋子，只处理一次
+        else if (neighborPiece.color === opponentColor && !hasFoundOpponentPiece) {
+            hasFoundOpponentPiece = true;
             const opponentFormation = checkFormation(row, col, opponentColor, board);
             if (opponentFormation) {
-                bestOpponentPosition = [row, col];
                 maxOpponentExtraMoves = opponentFormation.extraMoves;
+                bestOpponentPosition = [row, col];
+                // debugLog(CONFIG.DEBUG, 找到对方可能形成阵型的位置: ${opponentColor}, [row, col], maxOpponentExtraMoves);
+            }
+            if (hasFoundSelfPiece) {
+                // 如果已经找到对方棋子，则周围既有己方，又有对方旗子，且都已经判断过阵型，不再继续
+                break;
             }
         }
     }
 
-    return { bestSelfPosition, bestOpponentPosition, maxSelfExtraMoves, maxOpponentExtraMoves };
+    if (!bestSelfPosition && !bestOpponentPosition && (hasFoundOpponentPiece || hasFoundSelfPiece)) {
+        // 3. 该row, col位置放置己方棋子不能形成阵型，放置对方棋子也不能形成阵型，但是周边有棋子，待进一步分析其价值
+        availablePositions.add(JSON.stringify([row, col]));
+    }
+
+    return {
+        bestSelfPosition,
+        bestOpponentPosition,
+        maxSelfExtraMoves,
+        maxOpponentExtraMoves
+    };
 }
 /**
  * 计算指定位置r, c周边的color棋子移动到该位置后可获得的最大奖励

@@ -15,9 +15,9 @@ export class MCTSAgent {
 
     /**
      * 获取最佳落子位置
-     * @param {string} currentColor 当前玩家颜色
-     * @param {string} opponentColor 对手颜色
-     * @param {Array} currentBoard 当前棋盘状态
+     * @param {string} player 当前玩家颜色
+     * @param {string} opponent 对手颜色
+     * @param {Array} board 当前棋盘状态
      * @param {Function} evaluatePositionsFn 用于评估局势的方法
      * @param {Set} availablePositions 所有可能的落子位置
      * @returns {Array} 最佳位置
@@ -25,16 +25,34 @@ export class MCTSAgent {
 
 
     // 修改 getBestPlace 方法中的相关代码
-    getBestPlace(currentColor, opponentColor, currentBoard, evaluatePositionsFn, availablePositions) {
+    getBestPlace(player, opponent, board, evaluatePositionsFn, availablePositions) {
         const options = Array.from(availablePositions).map(p => JSON.parse(p));
         const scores = new Map();
 
-        for (const pos of options) {          
-            
-            this.applyPlace(currentBoard, pos, currentColor);
+        for (const pos of options) {
+            // 如果currentColor是white，防守一方
+            // 在随机选择一个位置之前先判断一下，当前player是否为white防守方
+            if (player === 'white') {
+                // 如果是white防守方，则尝试让对方在当前availablePositions处放置一颗棋子，看对方是否还能形成阵型
+
+                this.applyPlace(board, pos, opponent);
+                const bestPositions = evaluatePositionsFn(board, player, opponent, new Set());
+                // 意味着如果让对方黑方落子在pos，对方能形成多个阵型，对方就赢了
+                if (bestPositions.bestOpponentPosition.length > 1) {
+                    debugLog(CONFIG.DEBUG, `如果让${opponent}方放置在${pos},${opponent}方将获胜:`, bestPositions.bestOpponentPosition);
+                    // 恢复棋盘状态
+                    this.unApplyPlace(board, pos);
+                    scores.set(JSON.stringify(pos), 1);
+                    continue;
+                }
+                // 恢复棋盘状态
+                this.unApplyPlace(board, pos);
+            }
+
+            this.applyPlace(board, pos, player);
             // 计算一次空位
-            const emptyPositions = this.getEmptyPositions(currentBoard);
-            
+            const emptyPositions = this.getEmptyPositions(board);
+
             // 为每个位置创建独立的统计对象
             const posStats = new PositionCoverageStats(pos, emptyPositions);
             //去除缓存，因为反应变慢，也没有命中缓存
@@ -47,21 +65,15 @@ export class MCTSAgent {
             // }
 
             let totalScore = 0;
-
             for (let i = 0; i < this.dynamicSimulations; i++) {
-                const boardCopy = JSON.parse(JSON.stringify(currentBoard));
-                const winner = this.simulateGame(boardCopy, opponentColor, currentColor, evaluatePositionsFn, posStats);
-
-                if (winner === currentColor) {
-                    totalScore += 1;
-                } else if (winner === opponentColor) {
-                    totalScore += 0;
-                } else {
-                    totalScore += 0.5;
-                }
+                debugLog(false, `开始第${i + 1}次模拟，当前位置: ${pos}，availablePositions=`,options);
+                const boardCopy = JSON.parse(JSON.stringify(board));
+                // 因为已经模拟己方下了一颗棋子，所以下面要从opponent开始走
+                const winner = this.simulateGame(boardCopy, opponent, player, evaluatePositionsFn, posStats, pos);
+                totalScore += (winner === player) ? 1 : (winner === opponent ? 0 : 0.5);
             }
-            // 恢复棋盘状态
-            this.unApplyPlace(currentBoard, pos, currentColor);
+
+            this.unApplyPlace(board, pos);
 
             const avg = totalScore / this.dynamicSimulations;
             scores.set(JSON.stringify(pos), avg);
@@ -70,8 +82,8 @@ export class MCTSAgent {
 
             // 每个位置模拟结束后立即输出其统计信息
             const coverage = posStats.getCoverageStats();
-            debugLog(CONFIG.DEBUG, `对${currentColor}方进行MCTS模拟，平均得分= ${avg.toFixed(4)}，总空位数: ${coverage.totalEmpty}，已使用空位数: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
-${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`,pos);
+            debugLog(CONFIG.DEBUG, `对${player}方在位置[${pos}]进行${this.dynamicSimulations}次MCTS模拟，每次走${this.dynamicDepth}步，平均分: ${avg.toFixed(4)}，总空位: ${coverage.totalEmpty}，已用空位: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
+${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`, pos);
         }
 
         let bestScore = -Infinity;
@@ -92,12 +104,12 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
     /**
      * 模拟游戏进行若干步，返回赢家
      * @param {Array} board 当前棋盘
-     * @param {string} currentColor 当前玩家颜色
-     * @param {string} opponentColor 对手颜色
+     * @param {string} player 当前玩家颜色
+     * @param {string} opponent 对手颜色
      * @param {Function} evaluatePositionsFn 评估函数（需生成下一步可落子位置）
      * @returns {string} 胜利者颜色或'draw'
      */
-    simulateGame(board, player, opponent, evaluatePositionsFn, boardStats) {
+    simulateGame(board, player, opponent, evaluatePositionsFn, boardStats, firstMove) {
         let turn = 0;
         while (turn < this.dynamicDepth) {
             const availablePositions = new Set();
@@ -134,33 +146,51 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
             // 处理己方最佳位置数组
             if (bestSelfPosition.length > 0) {
                 if (CONFIG.DEBUG) {
-                    bestSelfPosition.forEach(place => {
-                        this.applyPlace(board, place, player);
-                        boardStats.recordUsed(place);
-                    }); 
-                    debugLog(CONFIG.DEBUG, `第${turn}颗棋子后返回bestSelfPosition:`,bestSelfPosition);
+                    bestSelfPosition.forEach(pos => boardStats.recordUsed(pos));
+                    debugLog(CONFIG.DEBUG, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后${player}方获胜，bestSelf:`, bestSelfPosition);
                 }
-                
                 return player;
             }
 
             let place = null;
             // 处理对手最佳位置数组
-            if (bestOpponentPosition.length > 0) {
-                if (bestOpponentPosition.length > 1) { // TODO 没法处理的情况时，对方下一步可以在不同的位置形成多个阵型，获得的奖励不一样也无法封堵
-                    // 如果有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-                    debugLog(CONFIG.DEBUG, `第${turn}颗棋子后返回bestOpponentPosition:`,bestOpponentPosition);
-                    return opponent;
-                }
+            if (bestOpponentPosition.length > 1) { // TODO 没法处理的情况时，对方下一步可以在不同的位置形成多个阵型，获得的奖励不一样也无法封堵
+                // 如果有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
+                debugLog(CONFIG.DEBUG, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后${opponent}方获胜，返回bestOpponentPosition:`, bestOpponentPosition);
+                return opponent;
+            } else if (bestOpponentPosition.length === 1) {
                 place = bestOpponentPosition[0];
             } else {
-                const options = Array.from(availablePositions).map(p =>
-                    typeof p === 'string' ? JSON.parse(p) : p
-                );
+                const options = Array.from(availablePositions).map(p => typeof p === 'string' ? JSON.parse(p) : p);
                 if (options.length === 0) break;
 
-                place = this.pickRandom(options);
+                // 在随机选择一个位置之前先判断一下，当前player是否为white防守方
+                if (player === 'white') {
+                    // 如果是white防守方，则尝试让对方在当前availablePositions处放置一颗棋子，看对方是否还能形成阵型
+                    for (const pos of options) {
+                        this.applyPlace(board, pos, opponent);
+
+                        const bestPositions = evaluatePositionsFn(board, player, opponent, new Set());
+                        // 意味着如果让对方黑方落子在pos，对方能形成多个阵型，对方就赢了，所以white方要提前占领该位置
+                        if (bestPositions.bestOpponentPosition.length > 1) {
+                            debugLog(false, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后如果让${opponent}方放置在${pos},${opponent}方将获胜:`, bestPositions.bestOpponentPosition, options, board);
+                            place = pos;
+                            // 恢复棋盘状态
+                            // this.unApplyPlace(board, pos); 可以不恢复，因为后面会直接在该位置放置己方棋子
+                            break;
+                        }
+                        // 恢复棋盘状态
+                        this.unApplyPlace(board, pos);
+                    }
+                    if (!place) {
+                        place = this.pickRandom(options);
+                    }                    
+                } else {
+                    // 如果是black
+                    place = this.pickRandom(options);
+                }
             }
+
             // 记录本次使用的位置
             if (CONFIG.DEBUG) {
                 boardStats.recordUsed(place);
@@ -181,7 +211,7 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
 
         if (bestOpponentPosition.length > 1) {
             // 如果是数组的数组，说明有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-            debugLog(false, `${player}的对手的最佳位置有多个那就是堵不住了，说明对方赢了:`, bestOpponentPosition);
+            debugLog(CONFIG.DEBUG, `${player}的对手的最佳位置有多个那就是堵不住了，说明对方赢了:`, bestOpponentPosition);
             return 0;
         }
 
@@ -204,7 +234,7 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
     unApplyPlace(board, pos) {
         unApplyPlace(board, pos);
     }
- 
+
     /**
      * 从数组中选择一个未使用的随机元素
      * @param {Array} array 候选数组

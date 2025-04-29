@@ -22,8 +22,6 @@
     /* 或者你需要设固定高度也可以 */
 }
 
-
-
 .piece-box {
     position: absolute;
     left: 50%;
@@ -35,11 +33,6 @@
     display: flex;
     /* 水平分布 */
     justify-content: center;
-    align-items: center;
-}
-
-.piece-wrapper {
-    display: flex;
     align-items: center;
 }
 
@@ -159,29 +152,6 @@
     justify-content: center;
 }
 
-
-.flash {
-    animation: flash 1s 3;
-}
-
-@keyframes flash {
-    0% {
-        opacity: 1;
-        box-shadow: 0 0 0px rgba(0, 0, 0, 0);
-    }
-
-    50% {
-        opacity: 0.8;
-        box-shadow: 0 0 10px rgba(255, 215, 0, 1);
-        /* 金色光圈 */
-    }
-
-    100% {
-        opacity: 1;
-        box-shadow: 0 0 0px rgba(0, 0, 0, 0);
-    }
-}
-
 .intersection {
     /* width: 20rpx;*/
     /* height: 20rpx;*/
@@ -192,52 +162,99 @@
 
 /* 通用棋子外观 */
 .piece {
-    border-radius: 50%;
-    position: absolute;
-    z-index: 3;
+  border-radius: 50%;
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  background-size: cover;
 }
 
-/* 普通棋盘棋子：居中到交叉点  禁用静态棋子的事件 */
+/* 静态棋子，居中且禁用交互 */
 .static-piece {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none; 
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
-/* 移动中的棋子：自由移动  移动中的棋子保持可触摸 */
+/* 移动中的棋子，自由移动，带轻微发光 */
 .moving-piece {
-    z-index: 10;
-    pointer-events: none;
-    will-change: transform;
-    /* 优化性能 */
-    border: 2px solid blue !important;
-    /* 高亮移动元素 */
-    pointer-events: none !important; 
-    filter: drop-shadow(0 0 8px rgba(0,0,0,0.3));
+  z-index: 10;
+  pointer-events: none !important;
+  will-change: transform;
+  /* 优化性能 */
+  border-radius: 50%;
+  filter: drop-shadow(0 0 6rpx rgba(0, 0, 0, 0.3));
+  box-shadow: 0 0 10rpx 5rpx rgba(255, 255, 255, 0.2);
 }
 
+/* 黑色棋子 - 深邃金属质感 */
 .piece.black {
-    background: radial-gradient(circle at 30% 30%, #555, #000);
-    box-shadow: inset -2rpx -2rpx 4rpx rgba(255, 255, 255, 0.3),
-        inset 2rpx 2rpx 6rpx rgba(0, 0, 0, 0.5),
-        2rpx 2rpx 8rpx rgba(0, 0, 0, 0.5);
-    border: 2rpx solid #999;
+  background: radial-gradient(
+    circle at 30% 30%,
+    #666 0%,
+    #333 50%,
+    #111 100%
+  );
+  box-shadow:
+    inset -4rpx -4rpx 10rpx rgba(255, 255, 255, 0.15),
+    inset 2rpx 2rpx 8rpx rgba(0, 0, 0, 0.7),
+    0 0 8rpx rgba(0, 0, 0, 0.5);
+  border: 1rpx solid #888;
 }
 
+/* 白色棋子 - 陶瓷亮面质感 */
 .piece.white {
-    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
-    box-shadow: inset -2rpx -2rpx 4rpx rgba(255, 255, 255, 0.8),
-        inset 2rpx 2rpx 6rpx rgba(0, 0, 0, 0.2),
-        2rpx 2rpx 8rpx rgba(0, 0, 0, 0.2);
-    border: 1rpx solid #666;
+  background: radial-gradient(
+    circle at 30% 30%,
+    #FFF 0%,
+    #EEE 50%,
+    #CCC 100%
+  );
+  box-shadow:
+    inset -5rpx -5rpx 14rpx rgba(255, 255, 255, 0.8),
+    inset 3rpx 3rpx 10rpx rgba(0, 0, 0, 0.2),
+    0 0 6rpx rgba(0, 0, 0, 0.3);
+  border: 1rpx solid #AAA;
+}
+
+/* 阵型边框 - 提升黑子可见性，加更亮边框 & 光环 */
+.piece.formation-border::before {
+  content: '';
+  position: absolute;
+  top: -5rpx;
+  left: -5rpx;
+  right: -5rpx;
+  bottom: -5rpx;
+  border: 3rpx solid rgba(255, 220, 0, 0.9);  /* 更亮，更粗 */
+  border-radius: 50%;
+  box-shadow:
+    0 0 12rpx rgba(255, 220, 0, 0.8),
+    0 0 20rpx rgba(255, 220, 0, 0.4);
+  z-index: 2; /* 置于棋子上层，提高可见度 */
+  pointer-events: none;
+}
+
+/* 提示闪烁动画 - 柔和发光 */
+.flash {
+  animation: flash 1.2s ease-in-out 3;
+}
+
+@keyframes flash {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0px rgba(0, 0, 0, 0);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 16px rgba(255, 223, 0, 0.9);
+  }
 }
 
 
-/* 添加阵型边框样式 */
-.piece.formation-border {
-    border: 2rpx solid #ffcc00;
-    box-shadow: 0 0 10rpx rgba(255, 204, 0, 0.8);
+@keyframes pulse {
+  0% { opacity: 0.7; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1.05); }
 }
 
 .controls {
@@ -299,24 +316,19 @@
     margin-left: 20rpx;
 }
 
-/* 箭头按钮样式 */
+/* 箭头按钮（左侧定位） */
 .arrow-button {
-    width: 70rpx;
-    height: 40rpx;
+    position: absolute;
+    width: 50rpx;
+    height: 50rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.3s ease;
-    position: absolute;
-    /* 改为绝对定位 */
-    left: calc(50% - 140rpx);
-    /* 位于 piece-box 左侧 */
+    transition: opacity 0.3s;
     top: 50%;
     transform: translateY(-50%);
-    color: #000000;
-    font-weight: bolder;
-    font-size: larger;
+    z-index: 5;
 }
 
 .arrow-button.active {
@@ -324,10 +336,9 @@
 }
 
 .arrow-text {
-    font-size: 36rpx;
-    /* 加大字体 */
-    font-weight: bold;
-    /* 加粗字体 */
+    font-size: 40rpx;
+    font-weight: 900;
+    color: #333;
 }
 
 /* 悬浮的开始按钮 */
