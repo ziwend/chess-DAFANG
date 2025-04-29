@@ -37,6 +37,7 @@ import {
 import {
   cacheManager
 } from '../../utils/cacheManager.js';
+import { playDropSound } from '../../utils/audio';
 
 // 游戏主页面逻辑
 Page({
@@ -858,7 +859,7 @@ Page({
     } = targetPosition;
     // 更新棋盘状态
     const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
-
+    playDropSound();
     // 计算更新数据
     let updateData = {
       board: newBoard,

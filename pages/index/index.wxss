@@ -101,7 +101,7 @@
     box-sizing: border-box;
     z-index: 1;
     /* 确保棋盘在蒙版下方 */
-    margin: 60rpx 0;
+    margin: 55rpx 0;
     /* 增加上下外边距 */
     pointer-events: auto;
 }

@@ -8,7 +8,7 @@
     <view class="player-box">
         <!-- 左侧箭头按钮 -->
     <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}" 
-          style="left: calc(50% - {{boardRectCache.cellSize * 1.2}}px)">
+          style="left: calc(50% - {{boardRectCache.cellSize * 1.3}}px)">
         <text class="arrow-text">-></text> <!-- 箭头方向可根据需要调整 -->
     </view>
         <view class="piece-box black-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
@@ -22,8 +22,8 @@
         </view>
         <!-- 独立定位的难度条 -->
         <view class="difficulty-bar" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black" style="left: calc(50% + {{boardRectCache.cellSize * 0.85}}px)">
-            {{playerConfig.black.difficulty === 'easy' ? '▰▱▱' : 
-          (playerConfig.black.difficulty === 'medium' ? '▰▰▱' : '▰▰▰')}}
+            {{playerConfig.black.difficulty === 'easy' ? '■□□' : 
+          (playerConfig.black.difficulty === 'medium' ? '■■□' : '■■■')}}
         </view>
 
     </view>
@@ -79,7 +79,7 @@
 
         <!-- 左侧箭头 -->
     <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}" 
-          style="left: calc(50% - {{boardRectCache.cellSize * 1.2}}px)">
+          style="left: calc(50% - {{boardRectCache.cellSize * 1.3}}px)">
         <text class="arrow-text">-></text> <!-- 箭头方向可根据需要调整 -->
     </view>
         <view class="piece-box white-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
@@ -94,8 +94,8 @@
         </view>
         <!-- 独立定位的难度条 -->
         <view class="difficulty-bar" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white" style="left: calc(50% + {{boardRectCache.cellSize * 0.75}}px + 10rpx)">
-            {{playerConfig.white.difficulty === 'easy' ? '▰▱▱' : 
-          (playerConfig.white.difficulty === 'medium' ? '▰▰▱' : '▰▰▰')}}
+            {{playerConfig.white.difficulty === 'easy' ? '■□□' : 
+          (playerConfig.white.difficulty === 'medium' ? '■■□' : '■■■')}}
         </view>
 
     </view>
