@@ -2,7 +2,7 @@
 import { CONFIG } from "./gameConstants";
 import { debugLog } from "./historyUtils";
 import { applyPlace, unApplyPlace } from "./boardUtils";
-
+import { calculateTotalExtraMoves, selectLeastOpponentNeighbor } from "./positionUtils";
 export class MCTSAgent {
     constructor(config = {}) {
         this.dynamicSimulations = config.dynamicSimulations || 100;
@@ -28,33 +28,105 @@ export class MCTSAgent {
     getBestPlace(player, opponent, board, evaluatePositionsFn, availablePositions) {
         const options = Array.from(availablePositions).map(p => JSON.parse(p));
         const scores = new Map();
+        // 计算一次空位
+        const emptyPositions = this.getEmptyPositions(board);
 
+        let tempPosition = null;
+        let maxTotalExtraMoves = calculateTotalExtraMoves(board, opponent, player);
+        let foundBestPlace = false;
+        let maxTotalExtraMovesOpponent = calculateTotalExtraMoves(board, player, opponent); //计算当前棋盘上，移除对方棋子后己方可获得的总收益。
         for (const pos of options) {
-            // 如果currentColor是white，防守一方
-            // 在随机选择一个位置之前先判断一下，当前player是否为white防守方
-            if (player === 'white') {
-                // 如果是white防守方，则尝试让对方在当前availablePositions处放置一颗棋子，看对方是否还能形成阵型
-
-                this.applyPlace(board, pos, opponent);
-                const bestPositions = evaluatePositionsFn(board, player, opponent, new Set());
-                // 意味着如果让对方黑方落子在pos，对方能形成多个阵型，对方就赢了
-                if (bestPositions.bestOpponentPosition.length > 1) {
-                    debugLog(CONFIG.DEBUG, `如果让${opponent}方放置在${pos},${opponent}方将获胜:`, bestPositions.bestOpponentPosition);
+            // 如果剩余空位数是偶数，那么交替放置棋子，一定是对方最后一个棋子，然后对方先吃子,偶数时要做的则是:1-争取形成阵型反转；2-防止对方构造有利吃子机会
+            if (emptyPositions.size % 2 === 0) {
+                // 当前已经检查了放置一颗棋子，己方和对方都不能组成阵型，那么尝试己方放置第二颗棋子，能否形成对方无法封堵的阵型
+                this.applyPlace(board, pos, player);
+                // 然后是要轮到对方放子了，所以入参是opponent, player的顺序，对应的bestSelfPosition是opponent的，而bestSelfPosition肯定为空，因为之前已经检测过了，对方不会形成阵型，再放一颗己方棋子更不可能形成阵型
+                const availablePositionsTemp = new Set();
+                const result = evaluatePositionsFn(board, opponent, player, availablePositionsTemp);
+                if (result.bestOpponentPosition.length === 1) {
+                    // 说明己方再放置一颗可以形成阵型，还要记录下extramoves，找到最大的那个
+                } else if (result.bestOpponentPosition.length > 1) {
+                    debugLog(CONFIG.DEBUG, `如果让${player}方放置在${pos},${player}方将获胜:`, result.bestOpponentPosition, result.bestSelfPosition);
                     // 恢复棋盘状态
                     this.unApplyPlace(board, pos);
                     scores.set(JSON.stringify(pos), 1);
+                    continue; // 设置最高分，优先放置，便于己方形成阵型
+                } else {
+                    // 假设对方放这个位置，防止对方构造有利吃子机会
+                    this.applyPlace(board, pos, opponent);
+                    // 假设移除player棋子，检查opponent是否会增加对方吃子机会
+                    const newTotalExtraMoves = calculateTotalExtraMoves(board, player, opponent); //计算当前棋盘上，移除对方棋子后己方可获得的总收益。
+                    if (newTotalExtraMoves > maxTotalExtraMovesOpponent) {
+                        maxTotalExtraMovesOpponent = newTotalExtraMoves;
+                        if (tempPosition) {
+                            const key = JSON.stringify(tempPosition);
+                            scores.set(key, scores.get(key) - 0.1);
+                        }
+                        
+                        tempPosition = pos;
+                        scores.set(JSON.stringify(pos), 0.9);
+                        debugLog(CONFIG.DEBUG, `如果让${player}方放置在${pos},${player}方将获得${newTotalExtraMoves}个吃子机会:`);
+                        // 恢复棋盘状态
+                        this.unApplyPlace(board, pos);
+                        continue;
+                    }
+                    // 恢复棋盘状态，下面还会设置，不用恢复
+                    // this.unApplyPlace(board, pos);
+                }
+            } else {
+                // 如果当前棋子数是奇数，不考虑双方再形成阵型，则是己方最后一个棋子，己方先吃子，所以要做的就是:1-防止对方形成阵型；2-构造己方吃子机会
+                this.applyPlace(board, pos, opponent);
+                const bestPositions = evaluatePositionsFn(board, player, opponent, new Set());
+
+                if (bestPositions.bestOpponentPosition.length > 0) {
+                    foundBestPlace = true;
+                    if (tempPosition) { // 如果之前已经有一个棋子位置利于己方吃子，但其优先级低于阻止对方形成阵型
+                        const key = JSON.stringify(tempPosition);
+                        scores.set(key, scores.get(key) - 0.1);
+                    }
+                    scores.set(JSON.stringify(pos), 1);
+                    debugLog(CONFIG.DEBUG, `如果让${opponent}方放置在${pos},${opponent}方将获胜:`, options);
+                    // 恢复棋盘状态
+                    this.unApplyPlace(board, pos);
+                    continue; // 设置最高分，优先放置，放置对方放在该位置无法封堵
+                }
+                // 如果找到了对方可能形成阵型的位置，就不再考虑构造己方吃子机会
+                if (foundBestPlace) {
+                    // 恢复棋盘状态
+                    this.unApplyPlace(board, pos);
                     continue;
                 }
-                // 恢复棋盘状态
-                this.unApplyPlace(board, pos);
+
+                this.applyPlace(board, pos, player);
+                // 找到使己方吃子机会最多的那个位置，没有变化则不考虑
+                const newTotalExtraMoves = calculateTotalExtraMoves(board, opponent, player); //计算当前棋盘上，移除对方棋子后己方可获得的总收益。
+                if (newTotalExtraMoves > maxTotalExtraMoves) {
+                    maxTotalExtraMoves = newTotalExtraMoves;
+                    if (tempPosition) {
+                        const key = JSON.stringify(tempPosition);
+                        scores.set(key, scores.get(key) - 0.1);
+                    }
+                    
+                    tempPosition = pos;
+                    scores.set(JSON.stringify(pos), 0.9); // 对于可以增加吃子机会的最高分设为0.9
+                    debugLog(CONFIG.DEBUG, `如果让${player}方放置在${pos},${player}方将获得${newTotalExtraMoves}个吃子机会:`, bestPositions.bestSelfPosition);
+                    // 恢复棋盘状态
+                    this.unApplyPlace(board, pos);
+                    continue;
+                }
+                // 没有任何变化不考虑
+            }
+
+            let posStats = null;
+            // 记录本次使用的位置
+            if (CONFIG.DEBUG) {
+                // 为每个位置创建独立的统计对象
+                posStats = new PositionCoverageStats(pos, emptyPositions);
+                posStats.recordUsed(pos);
             }
 
             this.applyPlace(board, pos, player);
-            // 计算一次空位
-            const emptyPositions = this.getEmptyPositions(board);
 
-            // 为每个位置创建独立的统计对象
-            const posStats = new PositionCoverageStats(pos, emptyPositions);
             //去除缓存，因为反应变慢，也没有命中缓存
             //  const boardKey = JSON.stringify(boardCopy);
             // if (this.simulationCache.has(boardKey)) {
@@ -66,7 +138,7 @@ export class MCTSAgent {
 
             let totalScore = 0;
             for (let i = 0; i < this.dynamicSimulations; i++) {
-                debugLog(false, `开始第${i + 1}次模拟，当前位置: ${pos}，availablePositions=`,options);
+                debugLog(false, `开始第${i + 1}次模拟，当前位置: ${pos}，availablePositions=`, options);
                 const boardCopy = JSON.parse(JSON.stringify(board));
                 // 因为已经模拟己方下了一颗棋子，所以下面要从opponent开始走
                 const winner = this.simulateGame(boardCopy, opponent, player, evaluatePositionsFn, posStats, pos);
@@ -83,7 +155,7 @@ export class MCTSAgent {
             // 每个位置模拟结束后立即输出其统计信息
             const coverage = posStats.getCoverageStats();
             debugLog(CONFIG.DEBUG, `对${player}方在位置[${pos}]进行${this.dynamicSimulations}次MCTS模拟，每次走${this.dynamicDepth}步，平均分: ${avg.toFixed(4)}，总空位: ${coverage.totalEmpty}，已用空位: ${coverage.coveredCount}， 空位覆盖率: ${coverage.coverageRate}%
-${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`, pos);
+${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPositions.join(', ')}` : '- 所有空位都被使用！'}--------------`, options);
         }
 
         let bestScore = -Infinity;
@@ -95,6 +167,13 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
             } else if (score === bestScore) {
                 bestPlaces.push(JSON.parse(key));
             }
+        }
+
+        if (bestScore === 1 && bestPlaces.length > 1) {
+        // 则选择最少对方棋子的位置
+           const leastOpponentPositions = selectLeastOpponentNeighbor(bestPlaces, board, opponent, player);
+           debugLog(CONFIG.DEBUG, `放置在${leastOpponentPositions}`, leastOpponentPositions, bestPlaces);
+           return leastOpponentPositions;
         }
 
         return bestPlaces;
@@ -147,7 +226,7 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
             if (bestSelfPosition.length > 0) {
                 if (CONFIG.DEBUG) {
                     bestSelfPosition.forEach(pos => boardStats.recordUsed(pos));
-                    debugLog(CONFIG.DEBUG, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后${player}方获胜，bestSelf:`, bestSelfPosition);
+                    debugLog(CONFIG.DEBUG, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后${player}方在如下位置可形成阵型获胜，bestSelf:`, bestSelfPosition);
                 }
                 return player;
             }
@@ -156,7 +235,10 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
             // 处理对手最佳位置数组
             if (bestOpponentPosition.length > 1) { // TODO 没法处理的情况时，对方下一步可以在不同的位置形成多个阵型，获得的奖励不一样也无法封堵
                 // 如果有多个相等的最佳位置，对方有多个那就是堵不住了，说明对方赢了
-                debugLog(CONFIG.DEBUG, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后${opponent}方获胜，返回bestOpponentPosition:`, bestOpponentPosition);
+                if (CONFIG.DEBUG) {
+                    bestOpponentPosition.forEach(pos => boardStats.recordUsed(pos));
+                    debugLog(CONFIG.DEBUG, `针对可选位置[${firstMove}]交替放置第${turn}颗piece后${opponent}方获胜，返回bestOpponentPosition:`, bestOpponentPosition);
+                }
                 return opponent;
             } else if (bestOpponentPosition.length === 1) {
                 place = bestOpponentPosition[0];
@@ -184,7 +266,7 @@ ${coverage.coverageRate < 100 ? `- 未使用的空位: ${coverage.uncoveredPosit
                     }
                     if (!place) {
                         place = this.pickRandom(options);
-                    }                    
+                    }
                 } else {
                     // 如果是black
                     place = this.pickRandom(options);
@@ -336,17 +418,6 @@ class PositionCoverageStats {
         this.emptyPositions = emptyPositions;  // 直接使用传入的空位集合
         this.usedPositions = new Map();
     }
-
-    initEmptyPositions(board) {
-        for (let row = 0; row < CONFIG.BOARD_SIZE; row++) {
-            for (let col = 0; col < CONFIG.BOARD_SIZE; col++) {
-                if (!board[row][col]) {
-                    this.emptyPositions.add(JSON.stringify([row, col]));
-                }
-            }
-        }
-    }
-
     recordUsed(position) {
         const posStr = typeof position === 'string' ? position : JSON.stringify(position);
         const count = this.usedPositions.get(posStr) || 0;

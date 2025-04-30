@@ -226,12 +226,12 @@
   left: -5rpx;
   right: -5rpx;
   bottom: -5rpx;
-  border: 3rpx solid rgba(255, 220, 0, 0.9);  /* 更亮，更粗 */
+  border: 3rpx solid rgba(255, 204, 0, 0.9);  /* 更亮，更粗 */
   border-radius: 50%;
   box-shadow:
-    0 0 12rpx rgba(255, 220, 0, 0.8),
-    0 0 20rpx rgba(255, 220, 0, 0.4);
-  z-index: 2; /* 置于棋子上层，提高可见度 */
+    0 0 8rpx rgba(255, 204, 0, 0.8),
+    0 0 12rpx rgba(255, 204, 0, 0.4);
+  z-index: 4; /* 置于棋子上层，提高可见度 */
   pointer-events: none;
 }
 
@@ -317,7 +317,7 @@
 }
 
 /* 箭头按钮（左侧定位） */
-.arrow-button {
+.arrow {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -371,6 +371,22 @@
     font-size: 36rpx;
     padding: 8rpx 12rpx;
     white-space: nowrap;
+}
+/* 星星容器 */
+.stars-container {
+  display: flex;
+  gap: 2rpx; /* 修改: 将间距从 4rpx 减小到 2rpx */
+}
+
+/* 基础星星样式 */
+.star {
+  font-size: 40rpx;
+  color: #DDDDDD; /* 默认灰色空心效果 */
+}
+
+/* 激活的星星 */
+.star.active {
+  color: #FFD700; /* 金色 */
 }
 
 .stats-card {

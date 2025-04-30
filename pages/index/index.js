@@ -259,15 +259,16 @@ Page({
     // 2. 初始化棋盘估算尺寸
     const updateData = {
       playerStats,
-      dailyTasks,
-      boardRectReady: false // 明确标记未准备好
+      dailyTasks,      
     };
 
     // 3. 尝试读取缓存或计算估算值
     const cachedRect = wx.getStorageSync('boardRectCache');
     if (cachedRect) {
       updateData.boardRectCache = cachedRect;
+      updateData.boardRectReady = true;
     } else {
+      updateData.boardRectReady = false; // 明确标记未准备好
       const { windowWidth, windowHeight } = wx.getSystemInfoSync();
       const boardSize = windowWidth * (windowWidth / windowHeight > 0.6 ? 0.6 : 0.8);
 
@@ -316,7 +317,7 @@ Page({
             debugLog(CONFIG.DEBUG, '棋盘位置初始化完成', exactRect);
             resolve();
           } else {
-            console.warn('使用估算尺寸');
+            debugLog(CONFIG.DEBUG, "wx.createSelectorQuery().select('.board')未完成", res);
             this.setData({ boardRectReady: true });
             resolve();
           }
@@ -652,15 +653,6 @@ Page({
 
     const { targetRow: row, targetCol: col } = validPosition;
     const color = this.data.board[row][col].color;
-
-    debugLog(CONFIG.DEBUG, 'handleTouchStart-e.currentTarget.dataset=', e.currentTarget.dataset, row, col, color);
-
-    /*const {
-      row,
-      col,
-      color
-    } = e.currentTarget.dataset;*/
-    // 检查是否是当前玩家的回合
     const currentColor = this.data.players[this.data.currentPlayer];
     if (color !== currentColor) {
       this.showMessage('只能移动己方棋子');
@@ -695,7 +687,7 @@ Page({
     // 触发 touchmove 事件，确保 movingPiece 立即跟随手指
     setTimeout(() => {
       debugLog(CONFIG.DEBUG, "movingPiece=", this.data.movingPiece);
-      this.handleTouchMove(e);
+      // this.handleTouchMove(e);
     }, 50);
 
   },
@@ -860,7 +852,10 @@ Page({
     } = targetPosition;
     // 更新棋盘状态
     const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
-    playDropSound();
+    if (!this.data.isSilent) {
+      playDropSound();
+    }
+    
     // 计算更新数据
     let updateData = {
       board: newBoard,

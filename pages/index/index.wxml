@@ -1,14 +1,14 @@
 <view class="container">
     <view class="game-status">
-        <text class="status-text">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
-        <text wx:if="{{extraMoves > 0}}" class="extra-moves">剩余次数: {{extraMoves}}</text>
+        <text class="status-text" style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{message || (currentPlayer === 0 ? '黑方回合' : '白方回合')}}</text>
+        <text wx:if="{{extraMoves > 0}}" class="extra-moves" style="font-size: {{boardRectCache.cellSize * 0.2}}px;">剩余次数: {{extraMoves}}</text>
     </view>
 
     <!-- 黑子棋盒 -->
     <view class="player-box">
         <!-- 左侧箭头按钮 -->
-    <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}" 
-          style="left: calc(50% - {{boardRectCache.cellSize * 1}}px)">
+    <view class="arrow" wx:if="{{currentPlayer === 0}}"
+          style="width: {{boardRectCache.cellSize * 0.5}}px; left: calc(50% - {{boardRectCache.cellSize * 1.4}}px)">
         <text>-></text> <!-- 箭头方向可根据需要调整 -->
     </view>
         <view class="piece-box black-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
@@ -22,8 +22,9 @@
         </view>
         <!-- 独立定位的难度条 -->
         <view class="difficulty-bar" wx:if="{{playerConfig.black.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="black" style="left: calc(50% + {{boardRectCache.cellSize * 0.85}}px)">
-            {{playerConfig.black.difficulty === 'easy' ? '■□□' : 
-          (playerConfig.black.difficulty === 'medium' ? '■■□' : '■■■')}}
+            <text class="star active">★</text>
+    <text class="star {{playerConfig.black.difficulty === 'medium' || playerConfig.black.difficulty === 'hard' ? 'active' : ''}}">★</text>
+    <text class="star {{playerConfig.black.difficulty === 'hard' ? 'active' : ''}}">★</text>
         </view>
 
     </view>
@@ -31,10 +32,10 @@
     <block wx:if="{{showDailyTasks && playerConfig.black.playerType === 'self'}}">
         <view class="daily-tasks">
             <view class="task-container">
-                <view class="rank">{{playerStats.rank}}</view>
+                <view class="rank" style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{playerStats.rank}}</view>
                 <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
-                    <text>{{item.desc}}</text>
-                    <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+                    <text style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{item.desc}}</text>
+                    <text style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{item.completed ? '已完成' : item.points + '积分'}}</text>
                 </view>
 
             </view>
@@ -78,9 +79,9 @@
     <view class="player-box">
 
         <!-- 左侧箭头 -->
-    <view class="arrow-button {{currentPlayer === 1 ? 'active' : ''}}" 
-          style="left: calc(50% - {{boardRectCache.cellSize * 1.3}}px)">
-        <text class="arrow-text">-></text> <!-- 箭头方向可根据需要调整 -->
+    <view class="arrow" wx:if="{{currentPlayer === 1}}"
+          style="width: {{boardRectCache.cellSize * 0.5}}px; left: calc(50% - {{boardRectCache.cellSize * 1.4}}px)">
+        <text>-></text> <!-- 箭头方向可根据需要调整 -->
     </view>
         <view class="piece-box white-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
             <view class="piece white" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px;">
@@ -94,8 +95,11 @@
         </view>
         <!-- 独立定位的难度条 -->
         <view class="difficulty-bar" wx:if="{{playerConfig.white.playerType === 'local'}}" bindtap="goToPlayerSetting" data-color="white" style="left: calc(50% + {{boardRectCache.cellSize * 0.75}}px + 10rpx)">
-            {{playerConfig.white.difficulty === 'easy' ? '■□□' : 
-          (playerConfig.white.difficulty === 'medium' ? '■■□' : '■■■')}}
+          <view class="stars-container">
+    <text class="star active">★</text>
+    <text class="star {{playerConfig.white.difficulty === 'medium' || playerConfig.white.difficulty === 'hard' ? 'active' : ''}}">★</text>
+    <text class="star {{playerConfig.white.difficulty === 'hard' ? 'active' : ''}}">★</text>
+  </view>
         </view>
 
     </view>
@@ -104,10 +108,10 @@
     <block wx:if="{{showDailyTasks && playerConfig.white.playerType === 'self'}}">
         <view class="daily-tasks">
             <view class="task-container">
-                <view class="rank">{{playerStats.rank}}</view>
+                <view class="rank" style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{playerStats.rank}}</view>
                 <view class="task" wx:for="{{dailyTasks}}" wx:key="id">
-                    <text>{{item.desc}}</text>
-                    <text>{{item.completed ? '已完成' : item.points + '积分'}}</text>
+                    <text style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{item.desc}}</text>
+                    <text style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{item.completed ? '已完成' : item.points + '积分'}}</text>
                 </view>
 
             </view>

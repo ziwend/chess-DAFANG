@@ -13,20 +13,19 @@ export function getValidPositions(phase, currentColor, data) {
         if (phase === CONFIG.GAME_PHASES.MOVING) return getValidMoves(currentColor, opponentColor, data);
         if (phase === CONFIG.GAME_PHASES.REMOVING) return getValidRemovePositions(currentColor, opponentColor, data);
     } catch (error) {
-        debugLog(CONFIG.DEBUG, 'Error in getValidPositions:', error,error);
-        throw new Error('No Valid Positions!',error);
-    }    
+        debugLog(CONFIG.DEBUG, 'Error in getValidPositions:', error, error);
+        throw new Error('No Valid Positions!', error);
+    }
 }
 
 function getValidPlacePositions(currentColor, opponentColor, data) {
     const { board, blackCount, extraMoves } = data;
     // 第一颗棋子放在[1,1],[1,4],[4,1],[4,4]四个角落
     if (blackCount === 0) { // TODO 这里强烈依赖黑方开始，白方后手的规则
-       return decisionWrapper(DIRECTIONS.CORNERPOSITIONS, CONFIG.GAME_PHASES.PLACING);
+        return decisionWrapper(DIRECTIONS.CORNERPOSITIONS, CONFIG.GAME_PHASES.PLACING);
     }
 
     const availablePositions = new Set();
-
     const finalPositions = checkImmediateWin(board, currentColor, opponentColor, availablePositions, extraMoves);
     if (finalPositions.length > 0) {
         return finalPositions;
@@ -57,7 +56,10 @@ function checkImmediateWin(board, currentColor, opponentColor, availablePosition
     if (bestOpponentPosition.length > 0) {
         return handleBestPositions(bestOpponentPosition, board, currentColor, opponentColor);
     }
-
+    if (availablePositions.size === 1) {
+        debugLog(CONFIG.DEBUG, `只有最后一个可用位置，当作可以阻止对方的最佳位置返回：`, availablePositions);
+        return decisionWrapper(Array.from(availablePositions).map(p => JSON.parse(p)), CONFIG.GAME_PHASES.PLACING);
+    }
     return [];
 }
 
@@ -108,9 +110,9 @@ function decisionWrapper(positionsArray, gamephase) {
  */
 function evaluatePlaceAndRemoveReward(bestPlaces, board, currentColor, opponentColor) {
     let maxTotalExtraMoves = 0;
-    let bestPositions = []; 
+    let bestPositions = [];
 
-        for (const [row, col] of bestPlaces) {
+    for (const [row, col] of bestPlaces) {
 
 
         board[row][col] = { color: currentColor, isFormation: false };
@@ -131,7 +133,7 @@ function evaluatePlaceAndRemoveReward(bestPlaces, board, currentColor, opponentC
     - 最大总收益: ${maxTotalExtraMoves}
     - 最佳位置数: ${bestPositions.length}
     - 候选位置数: ${bestPlaces.length}
-    - 最佳位置列表:`, bestPositions);
+    - 最佳位置列表:${bestPositions}`, bestPlaces);
 
     if (bestPositions.length > 1) {
         // 如果有多个相同收益的位置，根据 WEIGHTS 选择权重最大的位置
@@ -154,7 +156,7 @@ function evaluatePlaceAndRemoveReward(bestPlaces, board, currentColor, opponentC
  * @param {string} currentColor - 当前玩家颜色
  * @returns {number} 总额外移动次数
  */
-function calculateTotalExtraMoves(board, opponentColor, currentColor) {
+export function calculateTotalExtraMoves(board, opponentColor, currentColor) {
     let totalExtraMoves = 0;
     for (let r = 0; r < CONFIG.BOARD_SIZE; r++) {
         for (let c = 0; c < CONFIG.BOARD_SIZE; c++) {
@@ -206,11 +208,11 @@ function filterPositionsByAdjacentPieces(positions, board, currentColor, opponen
         return { position: [row, col], selfCount: countAdjacent, opponentCount: countAdjacentOpponent };
     });
 
-// 2. 找出己方邻子最多的数量
+    // 2. 找出己方邻子最多的数量
     const maxSelf = Math.max(...scored.map(p => p.selfCount));
     let filtered = scored.filter(p => p.selfCount === maxSelf);
 
-// 3. 如果还有多个位置，按对方邻子数量筛选
+    // 3. 如果还有多个位置，按对方邻子数量筛选
     if (filtered.length > 1) {
         const maxOpponent = Math.max(...filtered.map(p => p.opponentCount));
         filtered = filtered.filter(p => p.opponentCount === maxOpponent);
@@ -256,10 +258,6 @@ function evaluatePositions(board, currentColor, opponentColor, availablePosition
                 }
             }
         }
-    }
-
-    if (availablePositions.size === 1) {
-        bestSelfPosition = Array.from(availablePositions).map(p => JSON.parse(p));        
     }
 
     return {
@@ -1047,7 +1045,7 @@ function calculateTotalReward(board, color) {
  * @param {string} opponentColor - 对手颜色
  * @returns {Array<Array<number>>} 返回所有最优位置
  */
-function selectLeastOpponentNeighbor(validPositions, board, currentColor, opponentColor) {
+export function selectLeastOpponentNeighbor(validPositions, board, currentColor, opponentColor) {
     let minOpponentCount = Infinity;
     let bestPositions = []; // 改为数组存储所有最优位置
 
@@ -1193,13 +1191,28 @@ function getValidMoves(currentColor, opponentColor, data) {
     }
 
     // 2. 可以阻止对方且给对方带来机会最少的移动
+    let fallbackPreventMove = null;
+
     if (moves.preventOpponentMoves.length > 0) {
-        const preventMoves = moves.preventOpponentMoves.filter(m => m.preventValue > m.giveOpponent);
-        if (preventMoves.length > 0) {
-            const bestMoves = selectBestMoves(preventMoves, 'preventValue');
+        // 为每个加上 netBenefit
+        moves.preventOpponentMoves.forEach(m => {
+            m.netBenefit = m.preventValue - m.giveOpponent;
+        });
+
+        if (moves.preventOpponentMoves.length > 1) {
+            // 多个候选，选择净收益最大的
+            const bestMoves = selectBestMoves(moves.preventOpponentMoves, 'netBenefit');
             if (bestMoves.length > 0) {
-                debugLog(CONFIG.DEBUG, `选择阻止对方移动:`, bestMoves);
+                debugLog(CONFIG.DEBUG, `选择阻止对方移动（净收益最大）:`, bestMoves);
                 return bestMoves;
+            }
+        } else {
+            // 只有一个
+            const onlyMove = moves.preventOpponentMoves[0];
+            if (onlyMove.netBenefit > 0) {
+                return [onlyMove.move];
+            } else {
+                fallbackPreventMove = onlyMove;  // 先存起来
             }
         }
     }
@@ -1226,9 +1239,22 @@ function getValidMoves(currentColor, opponentColor, data) {
 
 
     // 4. 最后选择给对方带来机会最少的移动
-    if (moves.worstMoves.length > 0) {
-        const bestMoves = selectBestMoves(moves.worstMoves, 'giveOpponent', true);
-        if (bestMoves.length > 0) return bestMoves;
+    // 最后选择给对方带来机会最少的移动（包括 fallbackPreventMove）
+    if (moves.worstMoves.length > 0 || fallbackPreventMove) {
+        const worstCandidates = [...moves.worstMoves];
+
+        if (fallbackPreventMove) {
+            worstCandidates.push({
+                move: fallbackPreventMove.move,
+                giveOpponent: fallbackPreventMove.giveOpponent
+            });
+        }
+
+        const bestMoves = selectBestMoves(worstCandidates, 'giveOpponent', true);  // 最小风险优先
+        if (bestMoves.length > 0) {
+            debugLog(CONFIG.DEBUG, `选择最小风险移动:`, bestMoves);
+            return bestMoves;
+        }
     }
     debugLog(CONFIG.DEBUG, '没找到有效位置', moves);
     // 比如该场景，找到一个可以阻止对方吃1颗棋子的移动，但是移动后对方会形成新的阵型，吃3颗棋子，通过前面的过滤，由于没有其他可选位置，所以最后会返回空数组
