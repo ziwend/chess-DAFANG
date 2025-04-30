@@ -51,7 +51,8 @@ Page({
     playerStats: null,
     dailyTasks: [],
     newAchievements: [],
-    showDailyTasks: false
+    showDailyTasks: false,
+    isSilent: true,
   },
 
   // 跳转到规则页面

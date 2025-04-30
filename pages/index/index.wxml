@@ -8,8 +8,8 @@
     <view class="player-box">
         <!-- 左侧箭头按钮 -->
     <view class="arrow-button {{currentPlayer === 0 ? 'active' : ''}}" 
-          style="left: calc(50% - {{boardRectCache.cellSize * 1.2}}px)">
-        <text class="arrow-text">-></text> <!-- 箭头方向可根据需要调整 -->
+          style="left: calc(50% - {{boardRectCache.cellSize * 1}}px)">
+        <text>-></text> <!-- 箭头方向可根据需要调整 -->
     </view>
         <view class="piece-box black-box" style="width: {{boardRectCache.cellSize * 1.5}}px; height: {{boardRectCache.cellSize * 0.9}}px;">
             <view class="piece black" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px;">

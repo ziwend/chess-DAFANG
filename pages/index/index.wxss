@@ -319,23 +319,10 @@
 /* 箭头按钮（左侧定位） */
 .arrow-button {
     position: absolute;
-    width: 50rpx;
-    height: 50rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s;
     top: 50%;
     transform: translateY(-50%);
-    z-index: 5;
-}
-
-.arrow-button.active {
-    opacity: 1;
-}
-
-.arrow-text {
+    padding: 8rpx 12rpx;
+    white-space: nowrap;
     font-size: 40rpx;
     font-weight: 900;
     color: #333;
@@ -438,7 +425,6 @@
     flex-direction: column;
     align-items: center;
     padding: 0 15rpx;
-    font-size: 26rpx;
     color: #666;
 }
 
