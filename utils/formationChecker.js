@@ -2,7 +2,7 @@ import { DIRECTIONS, CONFIG } from './gameConstants.js';
 import { isInBoard, isOnEdge } from './boardUtils.js';
 import { cacheManager } from './cacheManager.js';
 import { debugLog } from './historyUtils.js';
-import { FORMATION_POSITIONS } from './formationPositions.js';
+import { FORMATION_POSITIONS, SECOND_POSITIONS } from './formationPositions.js';
 
 export function checkFormation(row, col, currentColor, board) {
     let extraMoves = 0;
@@ -467,4 +467,14 @@ export function checkFormationAndCache(row, col, currentColor, board) {
     cacheManager.set(cacheKey, result);
 
     return result;
+}
+
+export function checkSecondPosition(opponentColor, board) {
+    for (const pos of DIRECTIONS.CORNERPOSITIONS) {
+        const [row,col] = pos;        
+        if (board[row][col]?.color === opponentColor) {
+            return SECOND_POSITIONS.get(`${row}${col}`);
+        }
+    }
+    return [];
 }

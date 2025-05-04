@@ -423,8 +423,6 @@
 
 /* 每日任务部分 */
 .daily-tasks {
-    margin-top: 10rpx;
-    padding: 15rpx;
     width: 100%;
     background-color: #f9f9f9;
 }

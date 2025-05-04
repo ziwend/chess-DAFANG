@@ -1,8 +1,8 @@
 import { DIRECTIONS, CONFIG, WEIGHTS } from './gameConstants.js';
-import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces } from './formationChecker.js';
+import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces, checkSecondPosition } from './formationChecker.js';
 import { isInBoard, hasValidPiece, hasAdjacentPiece, countAdjacentPieces, evaluateAdjacentPieces, isBoardWillFull } from './boardUtils.js';
 import { debugLog } from './historyUtils.js';
-import { FORMATION_POSITIONS } from './formationPositions.js';
+import { FORMATION_POSITIONS, OPENING_LIBRARY } from './formationPositions.js';
 import { MCTSAgent } from './MCTSAgent.js';
 
 export function getValidPositions(phase, currentColor, data) {
@@ -19,15 +19,26 @@ export function getValidPositions(phase, currentColor, data) {
 }
 
 function getValidPlacePositions(currentColor, opponentColor, data) {
-    const { board, blackCount, extraMoves } = data;
-    // 第一颗棋子放在[1,1],[1,4],[4,1],[4,4]四个角落
-    if (blackCount === 0) { // TODO 这里强烈依赖黑方开始，白方后手的规则
-        return decisionWrapper(DIRECTIONS.CORNERPOSITIONS, CONFIG.GAME_PHASES.PLACING);
+    const { board, blackCount, whiteCount, extraMoves, lastPlace } = data;
+    const positionsArray = OPENING_LIBRARY.get(blackCount + whiteCount);
+    if (positionsArray) { // TODO 这里强烈依赖黑方开始，白方后手的规则
+        if (!lastPlace) {
+            // 第一颗棋子放在[1,1],[1,4],[4,1],[4,4]四个角落
+            return decisionWrapper(positionsArray, CONFIG.GAME_PHASES.PLACING);
+        } else {
+            const secondPositions = new Map(positionsArray).get(lastPlace);
+            if (secondPositions) {
+                return decisionWrapper(secondPositions, CONFIG.GAME_PHASES.PLACING);
+            }
+            
+        }
+
     }
 
     const availablePositions = new Set();
     const finalPositions = checkImmediateWin(board, currentColor, opponentColor, availablePositions, extraMoves);
     if (finalPositions.length > 0) {
+        debugLog(CONFIG.DEBUG, `开局库没有找到${lastPlace}=`,finalPositions);
         return finalPositions;
     }
 
@@ -69,10 +80,11 @@ function handleBestPositions(positions, board, currentColor, opponentColor) {
     if (positions.length > 1) {
         const placementActions = getBestPlacementActions(positions, board, currentColor, opponentColor);
         if (placementActions.length > 0) {
+            debugLog(CONFIG.DEBUG, `开局库没有找到=`,placementActions);
             return placementActions;
         }
     }
-
+    debugLog(CONFIG.DEBUG, `开局库没有找到=`,positions);
     return decisionWrapper(positions, CONFIG.GAME_PHASES.PLACING);
 }
 

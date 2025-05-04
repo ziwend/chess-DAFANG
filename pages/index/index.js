@@ -22,7 +22,8 @@ import {
   updateBoard,
   isMaxPiecesCount,
   isBoardWillFull,
-  getBoardState
+  getBoardState,
+  canMove
 } from '../../utils/boardUtils.js';
 import {
   handleAITurn
@@ -53,7 +54,7 @@ Page({
     dailyTasks: [],
     newAchievements: [],
     showDailyTasks: false,
-    isSilent: true,
+    isSilent: false,
   },
 
   // 跳转到规则页面
@@ -259,7 +260,7 @@ Page({
     // 2. 初始化棋盘估算尺寸
     const updateData = {
       playerStats,
-      dailyTasks,      
+      dailyTasks,
     };
 
     // 3. 尝试读取缓存或计算估算值
@@ -279,23 +280,23 @@ Page({
       };
     }
 
-    this.setData(updateData);    
+    this.setData(updateData);
   },
-  onReady: async function() {
+  onReady: async function () {
     // 1. 如果已有缓存且未失效，直接使用
     if (this.data.boardRectReady) return;
-  
+
     // 2. 获取实际DOM位置
     try {
       await this.initBoardRect();
     } catch (err) {
-      debugLog(CONFIG.DEBUG, '获取棋盘位置失败:', null ,err);
+      debugLog(CONFIG.DEBUG, '获取棋盘位置失败:', null, err);
       // 降级使用估算值
       this.setData({ boardRectReady: true });
     }
   },
   // 初始化棋盘尺寸和位置
-  initBoardRect: function() {
+  initBoardRect: function () {
     return new Promise((resolve) => {
       wx.createSelectorQuery()
         .select('.board')
@@ -307,12 +308,12 @@ Page({
               ...res[0], // 覆盖实际位置(left/top等)
               lastUpdated: Date.now()
             };
-  
+
             this.setData({
               boardRectCache: exactRect,
               boardRectReady: true
             });
-            
+
             wx.setStorageSync('boardRectCache', exactRect);
             debugLog(CONFIG.DEBUG, '棋盘位置初始化完成', exactRect);
             resolve();
@@ -350,6 +351,7 @@ Page({
       blackLastMovedPiece: null,
       whiteLastMovedPiece: null,
       lastActionResult: null,
+      lastPlace: null,
       isAnimationInProgress: false, // 新增：标记动画是否正在进行
     };
     // 启动计时器
@@ -640,7 +642,7 @@ Page({
   // -------------手动下棋控制逻辑开始--------------
   handleTouchStart: function (e) {
     // 非移动阶段不处理
-    if (this.data.gamePhase !== CONFIG.GAME_PHASES.MOVING || this.data.isAnimationInProgress) {
+    if (this.data.gamePhase !== CONFIG.GAME_PHASES.MOVING) {
       return;
     }
     /**/
@@ -659,6 +661,9 @@ Page({
       return;
     }
     if (this.data.playerConfig[currentColor].playerType !== 'self') {
+      return;
+    }
+    if (!canMove(row, col, this.data.board)) {
       return;
     }
     const cellSize = this.data.boardRectCache.cellSize;
@@ -722,8 +727,8 @@ Page({
       return;
     }
     if (this.data.isAnimationInProgress) {
-      this.showMessage('动画未结束，请稍后再试');
-      return;
+      // this.showMessage('动画未结束，请稍后再试');
+      // return;
     }
     // 判断一下移动阶段是否有效
     if (this.data.gamePhase === CONFIG.GAME_PHASES.MOVING && !this.data.movingPiece) {
@@ -780,7 +785,8 @@ Page({
     const maxY = this.data.boardRectCache.boardSize + pieceRadius;
 
     if (boardX < minX || boardX > maxX || boardY < minY || boardY > maxY) {
-      debugLog(CONFIG.DEBUG, 'getValidBoardPosition-touch outside board', position, minX, maxX, minY, maxY);
+      // <view class="board-container" bindtouchend="handleTouchEnd"> 解决棋盘外点击没反应的问题
+      debugLog(false, '点击位置相对棋盘LEFT和TOP的距离：', position, 'minX', minX, 'maxX', maxX, 'minY', minY, 'maxY', maxY);
       return null;
     }
 
@@ -841,8 +847,8 @@ Page({
 
   // 处理无效的放置
   handleInvalidPlacement: function (color, targetPosition) {
-    const message = `${color}方放置的第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列位置无效，请重新选择`;
-    this.showMessage(message);
+    // const message = `${color}方放置的第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列位置无效，请重新选择`;
+    // this.showMessage(message);
   },
   // 处理放置阶段的落子逻辑
   handlePlaceDrop: function (currentColor, targetPosition) {
@@ -850,17 +856,34 @@ Page({
       targetRow,
       targetCol
     } = targetPosition;
-    // 更新棋盘状态
-    const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
+
     if (!this.data.isSilent) {
       playDropSound();
     }
+
+    // 更新棋盘状态
+    const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
     
     // 计算更新数据
     let updateData = {
       board: newBoard,
       [`${currentColor}Count`]: this.data[`${currentColor}Count`] + 1,
+      lastPlace: this.data.lastPlace? this.data.lastPlace + `${targetRow}${targetCol}`: `${targetRow}${targetCol}`,
     };
+
+debugLog(CONFIG.DEBUG, `key1=${this.data.blackCount + this.data.whiteCount},key2=${this.data.lastPlace},value=`,`[${targetRow}, ${targetCol}]`);
+      //更新place记录
+      const decision = {
+        action: CONFIG.GAME_PHASES.PLACING,
+        position: [targetRow, targetCol]
+      };
+      updateData.gameHistory = [...this.data.gameHistory, {
+        role: "assistant",
+        content: JSON.stringify(decision)
+      }];
+
+
+    let lastActionResult = null;
     if (this.data[`${currentColor}Count`] >= CONFIG.MIN_PIECES_TO_WIN - 1) {
       const formationUpdate = checkFormation(targetRow, targetCol, currentColor, newBoard);
       if (formationUpdate) {
@@ -869,14 +892,14 @@ Page({
         // 显示提示
         this.showMessage('形成了' + formationUpdate.formationType);
         Object.assign(updateData, formationUpdate);
-        updateData.lastActionResult = `你上次落子的位置[${targetRow},${targetCol}]形成了'${formationUpdate.formationType}'阵型，获得了${formationUpdate.extraMoves}次额外落子机会。`;
+        lastActionResult = `你上次在位置[${targetRow},${targetCol}]的落子构成了'${formationUpdate.formationType}'阵型，获得了${formationUpdate.extraMoves}次额外落子机会。`;
       }
       // 处理特殊情况
       if (this.isBoardWillFull()) {
         Object.assign(updateData, {
           extraMoves: 1,
           message: `请移除${this.data.currentPlayer === 1 ? '黑方' : '白方'}棋子`,
-          isExchangeRemoving: true
+          isExchangeRemoving: true,
         });
       } else if (this.data.extraMoves > 0) {
         updateData.extraMoves = this.data.extraMoves - 1;
@@ -895,20 +918,18 @@ Page({
     };
     updateData.isAnimationInProgress = true;
 
-    //更新place记录
-    const decision = {
-      action: CONFIG.GAME_PHASES.PLACING,
-      position: [targetRow, targetCol]
-    };
-    if (CONFIG.DEBUG) {
-      updateData.gameHistory = [...this.data.gameHistory, {
-        role: "assistant",
-        content: JSON.stringify(decision)
-      }];
-    }
-
     // 更新数据并设置闪动棋子
     this.setData(updateData);
+
+    // 如果不是最后一颗，增加一下操作的日志 
+    if (!this.isMaxPiecesCount()){
+      const userMessage = this.saveUserMessageToHistory(updateData.gamePhase, this.data.players[this.data.currentPlayer], this.data.gameHistory, lastActionResult);
+
+      this.setData({
+        gameHistory: userMessage.gameHistory,
+      });
+    }    
+
   },
 
   // 新增：检查棋盘是否已满
@@ -1090,23 +1111,28 @@ Page({
   // 抽取：处理手动双击移除操作
   handleRemove: function (currentColor, targetPosition) {
     // 吃子阶段：双击对方棋子
-    if (!this.lastTapTime) {
-      this.lastTapTime = Date.now();
-    } else if (Date.now() - this.lastTapTime < 600) { // 调整为500ms   
-      // 移除对方棋子            
-      if (!this.validatePosition(targetPosition, this.data.gamePhase, currentColor)) {
-        const message = `第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列棋子不能移除，请重新选择`;
-        this.showMessage(message);
-        return;
-      }
+    const now = Date.now();
+    const isDoubleClick = this.lastTapTime && (now - this.lastTapTime < 600);
+    
+    if (isDoubleClick) {
+        // 移除对方棋子            
+        if (!this.validatePosition(targetPosition, this.data.gamePhase, currentColor)) {
+            const message = `第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列棋子不能移除，请重新选择`;
+            this.showMessage(message);
+            this.lastTapTime = null;  // Reset on invalid position
+            return;
+        }
 
-      this.handleRemovePhase(targetPosition);
-      this.lastTapTime = null;
+        this.handleRemovePhase(targetPosition);
+        this.lastTapTime = null;  // Clear after successful removal
     } else {
-      this.lastTapTime = Date.now();
-      this.showMessage('请再点击一次移除对方的棋子');
+        this.lastTapTime = now;
+        if (this.lastTapTime) {
+          debugLog(CONFIG.DEBUG, 'Double tap detected', { now, lastTapTime: this.lastTapTime });
+            //this.showMessage('请再点击一次移除对方的棋子');
+        }
     }
-  },
+},
 
   validatePosition: function (position, type, color) {
     return validatePosition(position, type, color, this.data.board);
@@ -1128,7 +1154,7 @@ Page({
   },
 
   onAnimationEnd: async function (e) {
-
+    // 最后一次放置的动画，跟第一次删除的动画怎么区分
     if (this.data.gamePhase === CONFIG.GAME_PHASES.PLACING) {
       // 标记动画结束
       let updateData = {
@@ -1144,19 +1170,11 @@ Page({
       if (this.isMaxPiecesCount()) {
         this.showMessage("棋盘已满，开始提子！");
         updateData.gamePhase = CONFIG.GAME_PHASES.REMOVING;
-      } else {
-        updateData.gamePhase = CONFIG.GAME_PHASES.PLACING;
-      }
-
-      if (CONFIG.DEBUG) {
         // 增加一下操作的日志 
         const userMessage = this.saveUserMessageToHistory(updateData.gamePhase, this.data.players[this.data.currentPlayer], this.data.gameHistory, this.data.lastActionResult);
         updateData.gameHistory = userMessage.gameHistory;
+        this.setData(updateData);
       }
-
-      updateData.lastActionResult = null;
-
-      this.setData(updateData);
 
       this.handleAITurn(this.data.gamePhase, this.data.players[this.data.currentPlayer]);
     } else {

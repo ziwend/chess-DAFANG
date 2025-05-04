@@ -37,17 +37,16 @@
                     <text style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{item.desc}}</text>
                     <text style="font-size: {{boardRectCache.cellSize * 0.2}}px;">{{item.completed ? '已完成' : item.points + '积分'}}</text>
                 </view>
-
             </view>
         </view>
     </block>
-    <view class="board-container">
+    <view class="board-container" bindtouchend="handleTouchEnd">
         <!-- 悬浮的开始按钮 -->
         <button class="floating-start-button" bindtap="{{isGameOver ? 'restartGame' : 'startGame'}}" wx:if="{{!isGameStarted}}"></button>
         <!-- 棋盘蒙版 -->
         <view class="board-overlay" wx:if="{{!isGameStarted}}"></view>
 
-        <view class="board" style="width: {{boardRectCache.boardSize}}px; height: {{boardRectCache.boardSize}}px;" bindtouchstart="handleTouchStart" bindtouchmove="handleTouchMove" bindtouchend="handleTouchEnd">
+        <view class="board" style="width: {{boardRectCache.boardSize}}px; height: {{boardRectCache.boardSize}}px;" bindtouchstart="handleTouchStart" bindtouchmove="handleTouchMove" >
             <!-- 新增一层，单独绘制 movingPiece -->
             <view wx:if="{{movingPiece}}" class="piece moving-piece {{movingPiece.color}}" animation="{{moveAnimation}}" style="width: {{boardRectCache.pieceSize}}px; height: {{boardRectCache.pieceSize}}px; left: {{movingPiece.currentX}}px; top: {{movingPiece.currentY}}px;">
             </view>
