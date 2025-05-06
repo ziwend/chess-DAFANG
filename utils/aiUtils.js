@@ -112,7 +112,7 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
     let decision;
     try {
         decision = JSON.parse(jsonMatch[0]);
-        debugLog(CONFIG.DEBUG, `${aicolor === 'black' ? '黑方' : '白方'}, 决策 =`, decision);
+        debugLog(false, `${aicolor === 'black' ? '黑方' : '白方'}, 决策 =`, decision);
     } catch (error) {
         updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], `JSON 解析失败: ${error.message}`, data, setData);
     }

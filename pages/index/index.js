@@ -54,7 +54,7 @@ Page({
     dailyTasks: [],
     newAchievements: [],
     showDailyTasks: false,
-    isSilent: false,
+    isSilent: true,
   },
 
   // 跳转到规则页面
@@ -276,7 +276,7 @@ Page({
       updateData.boardRectCache = {
         boardSize,
         cellSize: boardSize / 5,
-        pieceSize: boardSize / 5 * 0.7
+        pieceSize: boardSize / 5 * 0.75
       };
     }
 

@@ -38,7 +38,7 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
     const availablePositions = new Set();
     const finalPositions = checkImmediateWin(board, currentColor, opponentColor, availablePositions, extraMoves);
     if (finalPositions.length > 0) {
-        debugLog(CONFIG.DEBUG, `开局库没有找到${lastPlace}=`,finalPositions);
+        debugLog(false, `开局库没有找到${lastPlace}=`,finalPositions);
         return finalPositions;
     }
 
