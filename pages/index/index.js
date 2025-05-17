@@ -863,24 +863,27 @@ Page({
 
     // 更新棋盘状态
     const newBoard = this.updateBoard(currentColor, null, null, targetRow, targetCol);
-    
+
     // 计算更新数据
     let updateData = {
       board: newBoard,
       [`${currentColor}Count`]: this.data[`${currentColor}Count`] + 1,
-      lastPlace: this.data.lastPlace? this.data.lastPlace + `${targetRow}${targetCol}`: `${targetRow}${targetCol}`,
+      lastPlace: this.data.lastPlace ? this.data.lastPlace + `${targetRow}${targetCol}` : `${targetRow}${targetCol}`,
     };
 
-debugLog(CONFIG.DEBUG, `key1=${this.data.blackCount + this.data.whiteCount},key2=${this.data.lastPlace},value=`,`[${targetRow}, ${targetCol}]`);
-      //更新place记录
-      const decision = {
-        action: CONFIG.GAME_PHASES.PLACING,
-        position: [targetRow, targetCol]
-      };
-      updateData.gameHistory = [...this.data.gameHistory, {
-        role: "assistant",
-        content: JSON.stringify(decision)
-      }];
+    if (this.data.lastPlace) {
+      debugLog(CONFIG.DEBUG, `key=${this.data.lastPlace},value=`, `[${targetRow}, ${targetCol}]`);
+    }
+    
+    //更新place记录
+    const decision = {
+      action: CONFIG.GAME_PHASES.PLACING,
+      position: [targetRow, targetCol]
+    };
+    updateData.gameHistory = [...this.data.gameHistory, {
+      role: "assistant",
+      content: JSON.stringify(decision)
+    }];
 
 
     let lastActionResult = null;
@@ -922,13 +925,13 @@ debugLog(CONFIG.DEBUG, `key1=${this.data.blackCount + this.data.whiteCount},key2
     this.setData(updateData);
 
     // 如果不是最后一颗，增加一下操作的日志 
-    if (!this.isMaxPiecesCount()){
+    if (!this.isMaxPiecesCount()) {
       const userMessage = this.saveUserMessageToHistory(updateData.gamePhase, this.data.players[this.data.currentPlayer], this.data.gameHistory, lastActionResult);
 
       this.setData({
         gameHistory: userMessage.gameHistory,
       });
-    }    
+    }
 
   },
 
@@ -1113,26 +1116,26 @@ debugLog(CONFIG.DEBUG, `key1=${this.data.blackCount + this.data.whiteCount},key2
     // 吃子阶段：双击对方棋子
     const now = Date.now();
     const isDoubleClick = this.lastTapTime && (now - this.lastTapTime < 600);
-    
-    if (isDoubleClick) {
-        // 移除对方棋子            
-        if (!this.validatePosition(targetPosition, this.data.gamePhase, currentColor)) {
-            const message = `第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列棋子不能移除，请重新选择`;
-            this.showMessage(message);
-            this.lastTapTime = null;  // Reset on invalid position
-            return;
-        }
 
-        this.handleRemovePhase(targetPosition);
-        this.lastTapTime = null;  // Clear after successful removal
+    if (isDoubleClick) {
+      // 移除对方棋子            
+      if (!this.validatePosition(targetPosition, this.data.gamePhase, currentColor)) {
+        const message = `第${targetPosition.targetRow + 1}行第${targetPosition.targetCol}列棋子不能移除，请重新选择`;
+        this.showMessage(message);
+        this.lastTapTime = null;  // Reset on invalid position
+        return;
+      }
+
+      this.handleRemovePhase(targetPosition);
+      this.lastTapTime = null;  // Clear after successful removal
     } else {
-        this.lastTapTime = now;
-        if (this.lastTapTime) {
-          debugLog(CONFIG.DEBUG, 'Double tap detected', { now, lastTapTime: this.lastTapTime });
-            //this.showMessage('请再点击一次移除对方的棋子');
-        }
+      this.lastTapTime = now;
+      if (this.lastTapTime) {
+        debugLog(CONFIG.DEBUG, 'Double tap detected', { now, lastTapTime: this.lastTapTime });
+        //this.showMessage('请再点击一次移除对方的棋子');
+      }
     }
-},
+  },
 
   validatePosition: function (position, type, color) {
     return validatePosition(position, type, color, this.data.board);
@@ -1439,7 +1442,17 @@ debugLog(CONFIG.DEBUG, `key1=${this.data.blackCount + this.data.whiteCount},key2
       const color = board[row][col].color;
       board[row][col] = null; // 移除最近放置的棋子            
       updateData[`${color}Count`] = (updateData[`${color}Count`] || this.data[`${color}Count`]) - 1; // 减少棋子计数
-      debugLog(CONFIG.DEBUG, '撤销放置操作', updateData.blackCount, updateData.whiteCount);
+      // lastPlace每次减去结尾的两个字符
+      if (updateData.lastPlace && updateData.lastPlace.length > 2) {
+        updateData.lastPlace = updateData.lastPlace.slice(0, -2);
+      } else {
+        // 处理字符串长度不足的情况
+        updateData.lastPlace = null; // 或者保持原值，根据你的需求
+      }
+      const formationUpdateDestroy = checkFormation(row, col, color, board);
+      // 移除棋子后处理阵型状态
+      this.handleDestroyedFormation(formationUpdateDestroy, board, color);
+      debugLog(CONFIG.DEBUG, '撤销放置操作', assistantAction); 
     } else if (action === CONFIG.GAME_PHASES.MOVING) {
       // 撤销移动操作
       const [startRow, startCol] = position;

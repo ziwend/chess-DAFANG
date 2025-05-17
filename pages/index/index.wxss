@@ -237,7 +237,7 @@
 
 /* 提示闪烁动画 - 柔和发光 */
 .flash {
-  animation: flash 1.2s ease-in-out 3;
+  animation: flash 0.2s ease-in-out 3; /* animation: flash 1.2s ease-in-out 3;*/
 }
 
 @keyframes flash {

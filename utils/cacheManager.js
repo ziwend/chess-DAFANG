@@ -48,6 +48,7 @@ class LRUCache {
         this.cache.set(key, value);
         this.stats.sets++;
     }
+    
     getStats() {
         const hitRate = this.stats.hits / (this.stats.hits + this.stats.misses) * 100 || 0;
         return {
@@ -57,21 +58,33 @@ class LRUCache {
             totalRequests: this.stats.hits + this.stats.misses
         };
     }
+    
     entries() {
         return this.cache.entries();
     }
+    
+    clear() {
+        this.cache.clear();
+        this.stats = {
+            hits: 0,
+            misses: 0,
+            sets: 0,
+            deletions: 0
+        };
+    }
+    
+    getAllKeys() {
+        return Array.from(this.cache.keys());
+    }
 }
 
-class CacheManager {
-    constructor() {
-        this.lruCache = new LRUCache(CONFIG.FORMATION_CHACE_SIZE); // 限制缓存大小
-        this.presetCachePath = `${wx.env.USER_DATA_PATH}/preset-cache_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-        //this.initCache();
+class CacheInstance {
+    constructor(name, capacity) {
+        this.name = name;
+        this.lruCache = new LRUCache(capacity);
+        this.cachePath = `${wx.env.USER_DATA_PATH}/${name}-cache_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     }
 
-    getAllKeys() {
-        return Array.from(this.lruCache.cache.keys());
-    }
     get(key) {
         return this.lruCache.get(key);
     }
@@ -80,10 +93,17 @@ class CacheManager {
         this.lruCache.set(key, value);
     }
 
+    getAllKeys() {
+        return this.lruCache.getAllKeys();
+    }
+
+    clear() {
+        this.lruCache.clear();
+    }
 
     printStats() {
         const stats = this.lruCache.getStats();
-        debugLog(CONFIG.DEBUG, `Cache Performance:
+        debugLog(CONFIG.DEBUG, `Cache [${this.name}] Performance:
 - Cache Size: ${stats.cacheSize}
 - Total Requests: ${stats.totalRequests}
 - Cache Hits: ${stats.hits}
@@ -91,14 +111,83 @@ class CacheManager {
 - Hit Rate: ${stats.hitRate}
 - Sets: ${stats.sets}
 - Deletions: ${stats.deletions}
-`, this.getAllKeys())
+`, this.getAllKeys());
     }
 
     saveToStorage() {
-        // After some cache operations
         this.printStats();
+        // 这里可以实现将缓存保存到本地存储的逻辑
     }
-
 }
 
+class CacheManager {
+    constructor() {
+        this.caches = new Map();
+        // 创建默认缓存实例，兼容现有代码
+        this.createCache('formation', CONFIG.FORMATION_CHACE_SIZE);
+    }
+
+    createCache(name, capacity) {
+        if (this.caches.has(name)) {
+            debugLog(CONFIG.DEBUG, `缓存 ${name} 已存在，返回现有实例`);
+            return this.caches.get(name);
+        }
+        
+        const cacheInstance = new CacheInstance(name, capacity);
+        this.caches.set(name, cacheInstance);
+        return cacheInstance;
+    }
+
+    getCache(name) {
+        if (!this.caches.has(name)) {
+            debugLog(CONFIG.DEBUG, `缓存 ${name} 不存在，请先创建`);
+            return null;
+        }
+        return this.caches.get(name);
+    }
+
+    deleteCache(name) {
+        if (this.caches.has(name)) {
+            this.caches.delete(name);
+            return true;
+        }
+        return false;
+    }
+
+    // 兼容旧版API
+    get(key) {
+        return this.getCache('formation')?.get(key);
+    }
+
+    set(key, value) {
+        return this.getCache('formation')?.set(key, value);
+    }
+
+    getAllKeys() {
+        return this.getCache('formation')?.getAllKeys() || [];
+    }
+
+    printStats() {
+        this.getCache('formation')?.printStats();
+    }
+
+    saveToStorage() {
+        for (const [name, cache] of this.caches.entries()) {
+            cache.saveToStorage();
+        }
+    }
+
+    printAllStats() {
+        for (const [name, cache] of this.caches.entries()) {
+            cache.printStats();
+        }
+    }
+}
+
+// 单例导出，兼容现有代码
 export const cacheManager = new CacheManager();
+
+// 新的使用方式:
+// const userCache = cacheManager.createCache('users', 100);
+// userCache.set('user1', userData);
+// const userData = userCache.get('user1');

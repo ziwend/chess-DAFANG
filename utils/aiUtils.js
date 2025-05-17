@@ -3,7 +3,7 @@ import { saveUserMessageToHistory, saveAssistantMessageToHistory, debugLog } fro
 import { getValidPositions } from './positionUtils.js';
 import { isRepeatingMove } from './validationUtils.js';
 import { CONFIG } from './gameConstants.js';
-
+import { cacheManager } from './cacheManager.js';
 export async function handleAITurn(phase, aicolor, data, setData, showMessage, processAIDecision) {
     if (data.isGameOver || data.playerConfig[aicolor].playerType === 'self') {
         return;
@@ -14,7 +14,6 @@ export async function handleAITurn(phase, aicolor, data, setData, showMessage, p
 
         processAIDecision(phase, aicolor, decision);
     } catch (error) {
-        console.error(`${aicolor}-AI决策失败，请重试:`, error);
         showMessage(`AI决策失败，请重试: ${error.message}`);
     }
 }
@@ -36,13 +35,13 @@ async function fetchAIDecisionWithRetry(phase, aicolor, data, setData, showMessa
             if (error.message === 'AI 决策是重复移动') {
                 lastDecision = error.decision; // 假设 error 中包含 decision
             } else {
-                console.error(`${aicolor}-AI决策失败，重试 ${retryCount}/${maxRetries} 次:`, error);
+                debugLog(CONFIG.DEBUG, `${aicolor}-AI决策失败，重试 ${retryCount}/${maxRetries} 次:`, error);
             }
 
             // 重试 3 次后强制返回最后一次决策
             if (retryCount >= maxRetries) {
                 if (lastDecision) {
-                    console.warn('重试 3 次后仍然重复移动，强制接受决策');
+                    debugLog(false, '重试 3 次后仍然重复移动，强制接受决策', lastDecision);
                     return lastDecision;
                 } else {
                     throw new Error(`重试 ${maxRetries} 次后仍然失败: ${error}`);
@@ -107,7 +106,7 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
 
     } else { // 不使用 AI 时，本地生成决策
         jsonMatch = getRandomDecision(validPositions, aicolor, data);
-    }    
+    }
 
     let decision;
     try {
@@ -118,7 +117,7 @@ async function fetchAIDecision(phase, aicolor, data, setData, showMessage) {
     }
 
     if (!isDecisionValid(decision, validPositions)) {
-        updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], 'AI 决策无效', data, setData);
+        updateHistoryAndThrowError(phase, aicolor, jsonMatch[0], 'AI 决策无效:${decision}', data, setData);
     }
 
     if (phase === 'moving' && validPositions.length > 1 && isRepeatingMove(aicolor, decision, data)) {
@@ -144,15 +143,65 @@ function updateHistoryAndThrowError(phase, aicolor, content, errorMessage, data,
     throw error; // 抛出自定义错误对象
 }
 
-function getRandomDecision(validPositions,aicolor, data) {    
+function getRandomDecision(validPositions, aicolor, data) {
     if (validPositions.length > 1) {
+        const phase = data.gamePhase;
+    
+        // 缓存键名：根据 phase 和 lastPlace 拼接，避免冲突
+        const cacheKey = phase === 'placing'
+            ? (data.lastPlace ? `placing:${data.lastPlace}` : 'placing:0')
+            : `moving:${aicolor}`;
+    
+        // 从缓存中取已用过的位置数组
+        let usedSet = cacheManager.get(cacheKey) || [];
+    
+        for (let pos of validPositions) {
+            const posStr = JSON.stringify(pos);
+            if (!usedSet.some(p => JSON.stringify(p) === posStr)) {
+                // 如果是移动阶段，还要检查是否为重复动作
+                if (phase === 'moving' && isRepeatingMove(aicolor, pos, data)) {
+                    continue;
+                }
+    
+                // 命中：加入缓存并返回
+                usedSet.push(pos);
+                cacheManager.set(cacheKey, usedSet);
+                return [posStr];
+            }
+        }
+    
+        // 如果全部位置都已用过，清空缓存并使用第一个位置重新开始
+        debugLog(CONFIG.DEBUG, `所有位置都已使用，重置缓存: ${cacheKey}`);
+        cacheManager.set(cacheKey, []);
+        return [JSON.stringify(validPositions[0])];
+    }
+/*     if (validPositions.length > 1) {
         const randomIndex = Math.floor(Math.random() * validPositions.length);
         const decision = validPositions[randomIndex];
-        if (data.gamePhase === 'moving' && isRepeatingMove(aicolor, decision, data)){
+        if (data.gamePhase === 'moving' && isRepeatingMove(aicolor, decision, data)) {
             return [JSON.stringify(validPositions[validPositions.length - 1 - randomIndex])];
+        } else if (data.gamePhase === 'placing') {
+            for (let pos of validPositions) {
+                if (!data.lastPlace) {
+                    const firstPos = cacheManager.get("0");
+                    if (firstPos && JSON.stringify(firstPos) === JSON.stringify(pos)) {
+                        continue
+                    }
+                    cacheManager.set("0", pos);
+                    return [JSON.stringify(pos)];
+                }
+                const cachedResult = cacheManager.get(data.lastPlace);
+                if (cachedResult && JSON.stringify(cachedResult) === JSON.stringify(pos)) {  // Change this line
+                    debugLog(CONFIG.DEBUG, `命中缓存，key=${data.lastPlace}`, cachedResult);
+                    continue;
+                } else {
+                    cacheManager.set(data.lastPlace, pos);
+                    return [JSON.stringify(pos)];
+                }
+            }
         }
         return [JSON.stringify(validPositions[randomIndex])];
-    }
+    } */
     /* 这里暂时不考虑重复决策的情况，因为如果生成的决策是重复的，会直接抛出异常
     if (validPositions.length > 1) {
         if (data.lastRandomDecision !== randomIndex) {

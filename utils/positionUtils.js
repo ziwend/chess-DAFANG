@@ -2,8 +2,9 @@ import { DIRECTIONS, CONFIG, WEIGHTS } from './gameConstants.js';
 import { checkFormation, checkSquare, hasNonFormationPieces, hasNonSquarePieces, checkSecondPosition } from './formationChecker.js';
 import { isInBoard, hasValidPiece, hasAdjacentPiece, countAdjacentPieces, evaluateAdjacentPieces, isBoardWillFull } from './boardUtils.js';
 import { debugLog } from './historyUtils.js';
-import { FORMATION_POSITIONS, OPENING_LIBRARY } from './formationPositions.js';
+import { FORMATION_POSITIONS } from './formationPositions.js'; // , OPENING_LIBRARY
 import { MCTSAgent } from './MCTSAgent.js';
+import { OPENING_LIBRARY} from './openingLibrary.js';
 
 export function getValidPositions(phase, currentColor, data) {
     const opponentColor = currentColor === 'black' ? 'white' : 'black';
@@ -13,7 +14,6 @@ export function getValidPositions(phase, currentColor, data) {
         if (phase === CONFIG.GAME_PHASES.MOVING) return getValidMoves(currentColor, opponentColor, data);
         if (phase === CONFIG.GAME_PHASES.REMOVING) return getValidRemovePositions(currentColor, opponentColor, data);
     } catch (error) {
-        debugLog(CONFIG.DEBUG, 'Error in getValidPositions:', error, error);
         throw new Error('No Valid Positions!', error);
     }
 }
@@ -26,14 +26,17 @@ function getValidPlacePositions(currentColor, opponentColor, data) {
             // 第一颗棋子放在[1,1],[1,4],[4,1],[4,4]四个角落
             return decisionWrapper(positionsArray, CONFIG.GAME_PHASES.PLACING);
         } else {
-            const secondPositions = new Map(positionsArray).get(lastPlace);
-            if (secondPositions) {
-                return decisionWrapper(secondPositions, CONFIG.GAME_PHASES.PLACING);
+            //const secondPositions = new Map(positionsArray).get(lastPlace);
+            const cachedPositions = positionsArray.get(lastPlace);
+            if (cachedPositions) {
+                return decisionWrapper(cachedPositions, CONFIG.GAME_PHASES.PLACING);
             }
             
         }
 
     }
+
+    debugLog(CONFIG.DEBUG, `开局库没有找到${lastPlace}`,blackCount + whiteCount);
 
     const availablePositions = new Set();
     const finalPositions = checkImmediateWin(board, currentColor, opponentColor, availablePositions, extraMoves);
@@ -80,11 +83,11 @@ function handleBestPositions(positions, board, currentColor, opponentColor) {
     if (positions.length > 1) {
         const placementActions = getBestPlacementActions(positions, board, currentColor, opponentColor);
         if (placementActions.length > 0) {
-            debugLog(CONFIG.DEBUG, `开局库没有找到=`,placementActions);
+
             return placementActions;
         }
     }
-    debugLog(CONFIG.DEBUG, `开局库没有找到=`,positions);
+
     return decisionWrapper(positions, CONFIG.GAME_PHASES.PLACING);
 }
 
@@ -460,7 +463,7 @@ function calculateOptimalParameters(availablePositions, currentColor, data) {
             theoreticalMinSimulations
         )
     );
-    debugLog(CONFIG.DEBUG, '计算动态参数', config, '动态模拟次数:', optimalSimulations, '动态搜索深度:', optimalDepth);
+    debugLog(false, '计算动态参数', config, '动态模拟次数:', optimalSimulations, '动态搜索深度:', optimalDepth);
     return {
         dynamicSimulations: optimalSimulations,
         dynamicDepth: optimalDepth
